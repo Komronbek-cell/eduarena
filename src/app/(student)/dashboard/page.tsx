@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Profile, Quiz } from '@/types'
 import {
   Trophy, Flame, Star, Target, TrendingUp,
-  LogOut, Loader2, ChevronRight, Medal, Zap
+  LogOut, Loader2, ChevronRight, Medal, Zap, Bell, Users, CheckCircle
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const [weeklyQuiz, setWeeklyQuiz] = useState<Quiz | null>(null)
   const [rank, setRank] = useState<number>(0)
   const [quizCount, setQuizCount] = useState<number>(0)
+  const [announcementCount, setAnnouncementCount] = useState<number>(0)
+  const [completedQuizIds, setCompletedQuizIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,15 +26,18 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const [{ data: profileData }, { data: quizzes }, { data: attempts }, { data: allStudents }] = await Promise.all([
+      const [{ data: profileData }, { data: quizzes }, { data: attempts }, { data: allStudents }, { data: announcements }] = await Promise.all([
         supabase.from('profiles').select('*, groups(name)').eq('id', user.id).single(),
         supabase.from('quizzes').select('*').eq('status', 'active'),
-        supabase.from('quiz_attempts').select('id').eq('user_id', user.id),
+        supabase.from('quiz_attempts').select('id, quiz_id').eq('user_id', user.id),
         supabase.from('profiles').select('id, total_score').eq('role', 'student').order('total_score', { ascending: false }),
+        supabase.from('announcements').select('id'),
       ])
 
       setProfile(profileData)
       setQuizCount(attempts?.length ?? 0)
+      setAnnouncementCount(announcements?.length ?? 0)
+      setCompletedQuizIds(attempts?.map(a => a.quiz_id) ?? [])
 
       if (allStudents) {
         const rankIndex = allStudents.findIndex(s => s.id === user.id)
@@ -62,6 +67,10 @@ export default function DashboardPage() {
   )
 
   const groupName = (profile as any)?.groups?.name
+  const avatarUrl = (profile as any)?.avatar_url
+
+  const isDailyCompleted = dailyQuiz ? completedQuizIds.includes(dailyQuiz.id) : false
+  const isWeeklyCompleted = weeklyQuiz ? completedQuizIds.includes(weeklyQuiz.id) : false
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -74,20 +83,54 @@ export default function DashboardPage() {
             </div>
             <span className="font-black text-lg tracking-tight">EduArena</span>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1">
             <button
               onClick={() => router.push('/leaderboard')}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <Medal className="w-4 h-4" />
-              Reyting
+              <span className="hidden md:block">Reyting</span>
             </button>
+
+            <button
+              onClick={() => router.push('/groups')}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+            >
+              <Users className="w-4 h-4" />
+              <span className="hidden md:block">Guruhlar</span>
+            </button>
+
+            <button
+              onClick={() => router.push('/announcements')}
+              className="relative flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="hidden md:block">E'lonlar</span>
+            </button>
+
+            <button
+              onClick={() => router.push('/profile')}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center">
+                  <span className="text-xs font-black text-violet-600">
+                    {profile?.full_name?.charAt(0)}
+                  </span>
+                </div>
+              )}
+              <span className="hidden md:block">Profil</span>
+            </button>
+
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-red-500 px-3 py-2 rounded-lg transition"
+              className="flex items-center gap-2 text-sm text-gray-400 hover:text-red-500 px-3 py-2 rounded-lg transition ml-1"
             >
               <LogOut className="w-4 h-4" />
-              Chiqish
+              <span className="hidden md:block">Chiqish</span>
             </button>
           </div>
         </div>
@@ -120,31 +163,39 @@ export default function DashboardPage() {
               color: 'text-violet-600 bg-violet-50',
               label: 'Umumiy ball',
               value: profile?.total_score ?? 0,
-              suffix: ''
+              suffix: '',
+              onClick: () => router.push('/leaderboard'),
             },
             {
               icon: <Flame className="w-5 h-5" />,
               color: 'text-orange-500 bg-orange-50',
               label: 'Streak',
               value: profile?.streak ?? 0,
-              suffix: ' kun'
+              suffix: ' kun',
+              onClick: null,
             },
             {
               icon: <TrendingUp className="w-5 h-5" />,
               color: 'text-green-600 bg-green-50',
               label: 'Reyting',
               value: rank > 0 ? `#${rank}` : '#—',
-              suffix: ''
+              suffix: '',
+              onClick: () => router.push('/leaderboard'),
             },
             {
               icon: <Target className="w-5 h-5" />,
               color: 'text-blue-600 bg-blue-50',
               label: 'Quizlar',
               value: quizCount,
-              suffix: ' ta'
+              suffix: ' ta',
+              onClick: null,
             },
           ].map((s, i) => (
-            <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+            <div
+              key={i}
+              onClick={s.onClick ?? undefined}
+              className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm ${s.onClick ? 'cursor-pointer hover:shadow-md hover:border-violet-200 transition' : ''}`}
+            >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.color}`}>
                 {s.icon}
               </div>
@@ -158,18 +209,37 @@ export default function DashboardPage() {
         <div className="grid md:grid-cols-2 gap-4 mb-8">
           {/* Kunlik quiz */}
           <div className={`rounded-2xl p-6 border ${
-            dailyQuiz
+            isDailyCompleted
+              ? 'bg-green-50 border-green-200'
+              : dailyQuiz
               ? 'bg-violet-600 border-violet-600'
               : 'bg-white border-gray-100'
           }`}>
-            <div className={`flex items-center gap-2 mb-3 ${dailyQuiz ? 'text-violet-200' : 'text-gray-400'}`}>
+            <div className={`flex items-center gap-2 mb-3 ${
+              isDailyCompleted ? 'text-green-600' : dailyQuiz ? 'text-violet-200' : 'text-gray-400'
+            }`}>
               <Zap className="w-4 h-4" />
               <span className="text-sm font-semibold">Kunlik Quiz</span>
-              {dailyQuiz && (
+              {isDailyCompleted && (
+                <span className="ml-auto bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Yakunlangan
+                </span>
+              )}
+              {!isDailyCompleted && dailyQuiz && (
                 <span className="ml-auto bg-white/20 text-white text-xs px-2 py-0.5 rounded-full">Faol</span>
               )}
             </div>
-            {dailyQuiz ? (
+
+            {isDailyCompleted ? (
+              <>
+                <h3 className="text-lg font-black text-green-800 mb-1">{dailyQuiz?.title}</h3>
+                <p className="text-green-600 text-sm mb-4">Bugungi quizni muvaffaqiyatli yakunladingiz! 🎉</p>
+                <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
+                  <CheckCircle className="w-4 h-4" />
+                  Ball qo'shildi
+                </div>
+              </>
+            ) : dailyQuiz ? (
               <>
                 <h3 className="text-xl font-black text-white mb-1">{dailyQuiz.title}</h3>
                 <p className="text-violet-200 text-sm mb-5">
@@ -192,18 +262,37 @@ export default function DashboardPage() {
 
           {/* Haftalik */}
           <div className={`rounded-2xl p-6 border ${
-            weeklyQuiz
+            isWeeklyCompleted
+              ? 'bg-green-50 border-green-200'
+              : weeklyQuiz
               ? 'bg-gray-900 border-gray-900'
               : 'bg-white border-gray-100'
           }`}>
-            <div className={`flex items-center gap-2 mb-3 ${weeklyQuiz ? 'text-gray-400' : 'text-gray-400'}`}>
+            <div className={`flex items-center gap-2 mb-3 ${
+              isWeeklyCompleted ? 'text-green-600' : weeklyQuiz ? 'text-gray-400' : 'text-gray-400'
+            }`}>
               <Trophy className="w-4 h-4" />
               <span className="text-sm font-semibold">Haftalik Musobaqa</span>
-              {weeklyQuiz && (
+              {isWeeklyCompleted && (
+                <span className="ml-auto bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Yakunlangan
+                </span>
+              )}
+              {!isWeeklyCompleted && weeklyQuiz && (
                 <span className="ml-auto bg-white/10 text-gray-300 text-xs px-2 py-0.5 rounded-full">Faol</span>
               )}
             </div>
-            {weeklyQuiz ? (
+
+            {isWeeklyCompleted ? (
+              <>
+                <h3 className="text-lg font-black text-green-800 mb-1">{weeklyQuiz?.title}</h3>
+                <p className="text-green-600 text-sm mb-4">Haftalik musobaqani yakunladingiz! 🏆</p>
+                <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
+                  <CheckCircle className="w-4 h-4" />
+                  Ball qo'shildi
+                </div>
+              </>
+            ) : weeklyQuiz ? (
               <>
                 <h3 className="text-xl font-black text-white mb-1">{weeklyQuiz.title}</h3>
                 <p className="text-gray-400 text-sm mb-5">
@@ -225,26 +314,49 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Achievements */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-black text-lg">Yutuqlar</h2>
-            <span className="text-sm text-gray-400">0/6 ochilgan</span>
+        {/* Bottom grid */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <div
+            onClick={() => router.push('/announcements')}
+            className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-black text-lg flex items-center gap-2">
+                <Bell className="w-5 h-5 text-violet-600" />
+                E'lonlar
+              </h2>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </div>
+            {announcementCount > 0 ? (
+              <p className="text-gray-500 text-sm">{announcementCount} ta e'lon mavjud</p>
+            ) : (
+              <p className="text-gray-400 text-sm">Hozircha e'lon yo'q</p>
+            )}
           </div>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            {[
-              { icon: '🎯', title: 'Birinchi qadam' },
-              { icon: '🔥', title: '3 kunlik streak' },
-              { icon: '⚡', title: '7 kunlik streak' },
-              { icon: '🏆', title: 'Top 10' },
-              { icon: '👑', title: 'Hafta g\'olibi' },
-              { icon: '🤝', title: 'Guruh fidoyisi' },
-            ].map((a, i) => (
-              <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50 opacity-50">
-                <span className="text-2xl">{a.icon}</span>
-                <span className="text-xs text-center text-gray-500 leading-tight">{a.title}</span>
-              </div>
-            ))}
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-black text-lg">Yutuqlar</h2>
+              <span className="text-sm text-gray-400">0/6</span>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {[
+                { icon: '🎯', title: 'Birinchi qadam' },
+                { icon: '🔥', title: '3 kunlik streak' },
+                { icon: '⚡', title: '7 kunlik streak' },
+                { icon: '🏆', title: 'Top 10' },
+                { icon: '👑', title: 'Hafta g\'olibi' },
+                { icon: '🤝', title: 'Guruh fidoyisi' },
+              ].map((a, i) => (
+                <div
+                  key={i}
+                  title={a.title}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl border border-gray-100 bg-gray-50 opacity-40"
+                >
+                  <span className="text-xl">{a.icon}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </main>
