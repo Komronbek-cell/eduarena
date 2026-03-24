@@ -57,6 +57,7 @@ export default function QuizPage() {
 
     await supabase.rpc('increment_score', { user_id: userId, amount: score })
     await supabase.rpc('update_streak', { user_id: userId })
+    await supabase.rpc('check_and_award_achievements', { p_user_id: userId })
     router.push(`/quiz/${quizId}/result?score=${score}&correct=${correct}&total=${questions.length}`)
   }, [submitting, questions, quiz, quizId, userId, timeLeft, router])
 

@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Profile, Quiz } from '@/types'
 import {
   Trophy, Flame, Star, Target, TrendingUp,
-  LogOut, Loader2, ChevronRight, Medal, Zap, Bell, Users, CheckCircle
+  LogOut, Loader2, ChevronRight, Medal, Zap,
+  Bell, Users, CheckCircle, History
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [quizCount, setQuizCount] = useState<number>(0)
   const [announcementCount, setAnnouncementCount] = useState<number>(0)
   const [completedQuizIds, setCompletedQuizIds] = useState<string[]>([])
+  const [achievements, setAchievements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,18 +28,27 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
 
-      const [{ data: profileData }, { data: quizzes }, { data: attempts }, { data: allStudents }, { data: announcements }] = await Promise.all([
+      const [
+        { data: profileData },
+        { data: quizzes },
+        { data: attempts },
+        { data: allStudents },
+        { data: announcements },
+        { data: achievementsData },
+      ] = await Promise.all([
         supabase.from('profiles').select('*, groups(name)').eq('id', user.id).single(),
         supabase.from('quizzes').select('*').eq('status', 'active'),
         supabase.from('quiz_attempts').select('id, quiz_id').eq('user_id', user.id),
         supabase.from('profiles').select('id, total_score').eq('role', 'student').order('total_score', { ascending: false }),
         supabase.from('announcements').select('id'),
+        supabase.from('student_achievements').select('achievement_id, achievements(title, icon)').eq('user_id', user.id),
       ])
 
       setProfile(profileData)
       setQuizCount(attempts?.length ?? 0)
       setAnnouncementCount(announcements?.length ?? 0)
-      setCompletedQuizIds(attempts?.map(a => a.quiz_id) ?? [])
+      setCompletedQuizIds(attempts?.map((a: any) => a.quiz_id) ?? [])
+      setAchievements(achievementsData ?? [])
 
       if (allStudents) {
         const rankIndex = allStudents.findIndex(s => s.id === user.id)
@@ -68,9 +79,19 @@ export default function DashboardPage() {
 
   const groupName = (profile as any)?.groups?.name
   const avatarUrl = (profile as any)?.avatar_url
-
   const isDailyCompleted = dailyQuiz ? completedQuizIds.includes(dailyQuiz.id) : false
   const isWeeklyCompleted = weeklyQuiz ? completedQuizIds.includes(weeklyQuiz.id) : false
+
+  const allBadges = [
+    { icon: '🎯', title: 'Birinchi qadam' },
+    { icon: '🔥', title: '3 kunlik streak' },
+    { icon: '⚡', title: '7 kunlik streak' },
+    { icon: '🏆', title: 'Top 10' },
+    { icon: '👑', title: 'Hafta g\'olibi' },
+    { icon: '🤝', title: 'Guruh fidoyisi' },
+  ]
+
+  const earnedTitles = achievements.map((a: any) => a.achievements?.title)
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -102,11 +123,22 @@ export default function DashboardPage() {
             </button>
 
             <button
+              onClick={() => router.push('/history')}
+              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden md:block">Tarix</span>
+            </button>
+
+            <button
               onClick={() => router.push('/announcements')}
               className="relative flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <Bell className="w-4 h-4" />
               <span className="hidden md:block">E'lonlar</span>
+              {announcementCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full md:hidden" />
+              )}
             </button>
 
             <button
@@ -188,13 +220,15 @@ export default function DashboardPage() {
               label: 'Quizlar',
               value: quizCount,
               suffix: ' ta',
-              onClick: null,
+              onClick: () => router.push('/history'),
             },
           ].map((s, i) => (
             <div
               key={i}
               onClick={s.onClick ?? undefined}
-              className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm ${s.onClick ? 'cursor-pointer hover:shadow-md hover:border-violet-200 transition' : ''}`}
+              className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm ${
+                s.onClick ? 'cursor-pointer hover:shadow-md hover:border-violet-200 transition' : ''
+              }`}
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.color}`}>
                 {s.icon}
@@ -235,8 +269,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-black text-green-800 mb-1">{dailyQuiz?.title}</h3>
                 <p className="text-green-600 text-sm mb-4">Bugungi quizni muvaffaqiyatli yakunladingiz! 🎉</p>
                 <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
-                  <CheckCircle className="w-4 h-4" />
-                  Ball qo'shildi
+                  <CheckCircle className="w-4 h-4" /> Ball qo'shildi
                 </div>
               </>
             ) : dailyQuiz ? (
@@ -288,8 +321,7 @@ export default function DashboardPage() {
                 <h3 className="text-lg font-black text-green-800 mb-1">{weeklyQuiz?.title}</h3>
                 <p className="text-green-600 text-sm mb-4">Haftalik musobaqani yakunladingiz! 🏆</p>
                 <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
-                  <CheckCircle className="w-4 h-4" />
-                  Ball qo'shildi
+                  <CheckCircle className="w-4 h-4" /> Ball qo'shildi
                 </div>
               </>
             ) : weeklyQuiz ? (
@@ -316,6 +348,7 @@ export default function DashboardPage() {
 
         {/* Bottom grid */}
         <div className="grid md:grid-cols-2 gap-4">
+          {/* E'lonlar */}
           <div
             onClick={() => router.push('/announcements')}
             className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
@@ -334,29 +367,35 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Yutuqlar */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-black text-lg">Yutuqlar</h2>
-              <span className="text-sm text-gray-400">0/6</span>
+              <span className="text-sm text-gray-400">{achievements.length}/6 ochilgan</span>
             </div>
             <div className="grid grid-cols-6 gap-2">
-              {[
-                { icon: '🎯', title: 'Birinchi qadam' },
-                { icon: '🔥', title: '3 kunlik streak' },
-                { icon: '⚡', title: '7 kunlik streak' },
-                { icon: '🏆', title: 'Top 10' },
-                { icon: '👑', title: 'Hafta g\'olibi' },
-                { icon: '🤝', title: 'Guruh fidoyisi' },
-              ].map((a, i) => (
-                <div
-                  key={i}
-                  title={a.title}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl border border-gray-100 bg-gray-50 opacity-40"
-                >
-                  <span className="text-xl">{a.icon}</span>
-                </div>
-              ))}
+              {allBadges.map((a, i) => {
+                const earned = earnedTitles.includes(a.title)
+                return (
+                  <div
+                    key={i}
+                    title={a.title}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition ${
+                      earned
+                        ? 'border-violet-200 bg-violet-50 shadow-sm'
+                        : 'border-gray-100 bg-gray-50 opacity-40'
+                    }`}
+                  >
+                    <span className="text-xl">{a.icon}</span>
+                  </div>
+                )
+              })}
             </div>
+            {achievements.length > 0 && (
+              <p className="text-xs text-violet-600 font-semibold mt-3">
+                🎉 {achievements.length} ta yutuq qo'lga kiritildi!
+              </p>
+            )}
           </div>
         </div>
       </main>
