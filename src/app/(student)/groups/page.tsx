@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -245,6 +246,7 @@ export default function GroupsPage() {
           </>
         )}
       </main>
+        <BottomNav />
     </div>
   )
 }

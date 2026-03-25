@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -182,7 +183,7 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8">
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8 pb-24 md:pb-0">
 
         {/* Welcome */}
         <div className="mb-5 md:mb-8 flex items-start justify-between gap-3">
@@ -424,6 +425,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+      <BottomNav />
     </div>
   )
 }
+ 
