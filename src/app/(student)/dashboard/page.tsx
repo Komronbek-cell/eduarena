@@ -7,7 +7,7 @@ import { Profile, Quiz } from '@/types'
 import {
   Trophy, Flame, Star, Target, TrendingUp,
   LogOut, Loader2, ChevronRight, Medal, Zap,
-  Bell, Users, CheckCircle, History
+  Bell, Users, CheckCircle, History, Calendar
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -56,8 +56,13 @@ export default function DashboardPage() {
       }
 
       if (quizzes) {
-        setDailyQuiz(quizzes.find(q => q.type === 'daily') ?? null)
-        setWeeklyQuiz(quizzes.find(q => q.type === 'weekly') ?? null)
+        // Deadline tekshirish
+        const activeQuizzes = quizzes.filter(q => {
+          if (!q.deadline) return true
+          return new Date(q.deadline) > new Date()
+        })
+        setDailyQuiz(activeQuizzes.find(q => q.type === 'daily') ?? null)
+        setWeeklyQuiz(activeQuizzes.find(q => q.type === 'weekly') ?? null)
       }
 
       setLoading(false)
@@ -81,6 +86,7 @@ export default function DashboardPage() {
   const avatarUrl = (profile as any)?.avatar_url
   const isDailyCompleted = dailyQuiz ? completedQuizIds.includes(dailyQuiz.id) : false
   const isWeeklyCompleted = weeklyQuiz ? completedQuizIds.includes(weeklyQuiz.id) : false
+  const earnedTitles = achievements.map((a: any) => a.achievements?.title)
 
   const allBadges = [
     { icon: '🎯', title: 'Birinchi qadam' },
@@ -91,24 +97,30 @@ export default function DashboardPage() {
     { icon: '🤝', title: 'Guruh fidoyisi' },
   ]
 
-  const earnedTitles = achievements.map((a: any) => a.achievements?.title)
+  const formatDeadline = (deadline: string) => {
+    return new Date(deadline).toLocaleDateString('uz-UZ', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-100 px-6 py-4 sticky top-0 z-10">
+      <nav className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 md:py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-              <Trophy className="w-4 h-4 text-white" />
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 md:w-8 md:h-8 bg-violet-600 rounded-lg flex items-center justify-center">
+              <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
             </div>
-            <span className="font-black text-lg tracking-tight">EduArena</span>
+            <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
           </div>
 
-          <div className="flex items-center gap-1">
+          {/* Nav links */}
+          <div className="flex items-center gap-0.5 md:gap-1">
             <button
               onClick={() => router.push('/leaderboard')}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <Medal className="w-4 h-4" />
               <span className="hidden md:block">Reyting</span>
@@ -116,7 +128,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => router.push('/groups')}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <Users className="w-4 h-4" />
               <span className="hidden md:block">Guruhlar</span>
@@ -124,7 +136,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => router.push('/history')}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <History className="w-4 h-4" />
               <span className="hidden md:block">Tarix</span>
@@ -132,26 +144,25 @@ export default function DashboardPage() {
 
             <button
               onClick={() => router.push('/announcements')}
-              className="relative flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              className="relative flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
             >
               <Bell className="w-4 h-4" />
               <span className="hidden md:block">E'lonlar</span>
               {announcementCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full md:hidden" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
               )}
             </button>
 
+            {/* Avatar / Profil */}
             <button
               onClick={() => router.push('/profile')}
-              className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition ml-1"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
               ) : (
                 <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center">
-                  <span className="text-xs font-black text-violet-600">
-                    {profile?.full_name?.charAt(0)}
-                  </span>
+                  <span className="text-xs font-black text-violet-600">{profile?.full_name?.charAt(0)}</span>
                 </div>
               )}
               <span className="hidden md:block">Profil</span>
@@ -159,7 +170,7 @@ export default function DashboardPage() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-red-500 px-3 py-2 rounded-lg transition ml-1"
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-red-500 px-2 md:px-3 py-2 rounded-lg transition"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden md:block">Chiqish</span>
@@ -168,30 +179,31 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8">
+
         {/* Welcome */}
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-5 md:mb-8 flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black text-gray-900">
+            <h1 className="text-xl md:text-2xl font-black text-gray-900">
               Salom, {profile?.full_name?.split(' ')[0]} 👋
             </h1>
-            <p className="text-gray-400 mt-1 text-sm">
+            <p className="text-gray-400 mt-0.5 text-xs md:text-sm">
               {groupName ? `${groupName} guruhi` : 'Guruh belgilanmagan'} · Bugun ham g'alaba qozonish vaqti!
             </p>
           </div>
           {profile?.streak && profile.streak > 0 ? (
-            <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 text-orange-600 px-4 py-2 rounded-xl">
-              <Flame className="w-4 h-4" />
-              <span className="font-bold text-sm">{profile.streak} kunlik streak!</span>
+            <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-600 px-3 py-1.5 rounded-xl flex-shrink-0">
+              <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="font-bold text-xs md:text-sm">{profile.streak} kun</span>
             </div>
           ) : null}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-8">
           {[
             {
-              icon: <Star className="w-5 h-5" />,
+              icon: <Star className="w-4 h-4 md:w-5 md:h-5" />,
               color: 'text-violet-600 bg-violet-50',
               label: 'Umumiy ball',
               value: profile?.total_score ?? 0,
@@ -199,7 +211,7 @@ export default function DashboardPage() {
               onClick: () => router.push('/leaderboard'),
             },
             {
-              icon: <Flame className="w-5 h-5" />,
+              icon: <Flame className="w-4 h-4 md:w-5 md:h-5" />,
               color: 'text-orange-500 bg-orange-50',
               label: 'Streak',
               value: profile?.streak ?? 0,
@@ -207,7 +219,7 @@ export default function DashboardPage() {
               onClick: null,
             },
             {
-              icon: <TrendingUp className="w-5 h-5" />,
+              icon: <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />,
               color: 'text-green-600 bg-green-50',
               label: 'Reyting',
               value: rank > 0 ? `#${rank}` : '#—',
@@ -215,7 +227,7 @@ export default function DashboardPage() {
               onClick: () => router.push('/leaderboard'),
             },
             {
-              icon: <Target className="w-5 h-5" />,
+              icon: <Target className="w-4 h-4 md:w-5 md:h-5" />,
               color: 'text-blue-600 bg-blue-50',
               label: 'Quizlar',
               value: quizCount,
@@ -226,23 +238,23 @@ export default function DashboardPage() {
             <div
               key={i}
               onClick={s.onClick ?? undefined}
-              className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm ${
+              className={`bg-white border border-gray-100 rounded-2xl p-4 md:p-5 shadow-sm ${
                 s.onClick ? 'cursor-pointer hover:shadow-md hover:border-violet-200 transition' : ''
               }`}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.color}`}>
+              <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center mb-2.5 md:mb-3 ${s.color}`}>
                 {s.icon}
               </div>
-              <p className="text-2xl font-black text-gray-900">{s.value}{s.suffix}</p>
-              <p className="text-sm text-gray-400 mt-0.5">{s.label}</p>
+              <p className="text-xl md:text-2xl font-black text-gray-900">{s.value}{s.suffix}</p>
+              <p className="text-xs md:text-sm text-gray-400 mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Quiz kartalar */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-5 md:mb-8">
           {/* Kunlik quiz */}
-          <div className={`rounded-2xl p-6 border ${
+          <div className={`rounded-2xl p-5 md:p-6 border ${
             isDailyCompleted
               ? 'bg-green-50 border-green-200'
               : dailyQuiz
@@ -253,10 +265,10 @@ export default function DashboardPage() {
               isDailyCompleted ? 'text-green-600' : dailyQuiz ? 'text-violet-200' : 'text-gray-400'
             }`}>
               <Zap className="w-4 h-4" />
-              <span className="text-sm font-semibold">Kunlik Quiz</span>
+              <span className="text-xs md:text-sm font-semibold">Kunlik Quiz</span>
               {isDailyCompleted && (
                 <span className="ml-auto bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> Yakunlangan
+                  <CheckCircle className="w-3 h-3" /> Bajarildi
                 </span>
               )}
               {!isDailyCompleted && dailyQuiz && (
@@ -266,35 +278,38 @@ export default function DashboardPage() {
 
             {isDailyCompleted ? (
               <>
-                <h3 className="text-lg font-black text-green-800 mb-1">{dailyQuiz?.title}</h3>
-                <p className="text-green-600 text-sm mb-4">Bugungi quizni muvaffaqiyatli yakunladingiz! 🎉</p>
-                <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
-                  <CheckCircle className="w-4 h-4" /> Ball qo'shildi
-                </div>
+                <h3 className="text-base md:text-lg font-black text-green-800 mb-1">{dailyQuiz?.title}</h3>
+                <p className="text-green-600 text-xs md:text-sm">Bugungi quizni muvaffaqiyatli yakunladingiz! 🎉</p>
               </>
             ) : dailyQuiz ? (
               <>
-                <h3 className="text-xl font-black text-white mb-1">{dailyQuiz.title}</h3>
-                <p className="text-violet-200 text-sm mb-5">
-                  {dailyQuiz.time_limit / 60} daqiqa · {dailyQuiz.score_per_question} ball/savol
+                <h3 className="text-lg md:text-xl font-black text-white mb-1">{dailyQuiz.title}</h3>
+                {dailyQuiz.deadline && (
+                  <p className="text-violet-200 text-xs mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {formatDeadline(dailyQuiz.deadline)} gacha
+                  </p>
+                )}
+                <p className="text-violet-200 text-xs md:text-sm mb-4">
+                  {dailyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!
                 </p>
                 <button
                   onClick={() => router.push(`/quiz/${dailyQuiz.id}`)}
-                  className="flex items-center gap-2 bg-white text-violet-700 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-violet-50 transition"
+                  className="flex items-center gap-2 bg-white text-violet-700 font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-50 transition"
                 >
-                  Boshlash <ChevronRight className="w-4 h-4" />
+                  Boshlash <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
               </>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-gray-700 mb-1">Bugungi quiz</h3>
-                <p className="text-gray-400 text-sm">Hozircha faol quiz yo'q</p>
+                <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Bugungi quiz</h3>
+                <p className="text-gray-400 text-xs md:text-sm">Hozircha faol quiz yo'q</p>
               </>
             )}
           </div>
 
           {/* Haftalik */}
-          <div className={`rounded-2xl p-6 border ${
+          <div className={`rounded-2xl p-5 md:p-6 border ${
             isWeeklyCompleted
               ? 'bg-green-50 border-green-200'
               : weeklyQuiz
@@ -305,10 +320,10 @@ export default function DashboardPage() {
               isWeeklyCompleted ? 'text-green-600' : weeklyQuiz ? 'text-gray-400' : 'text-gray-400'
             }`}>
               <Trophy className="w-4 h-4" />
-              <span className="text-sm font-semibold">Haftalik Musobaqa</span>
+              <span className="text-xs md:text-sm font-semibold">Haftalik Musobaqa</span>
               {isWeeklyCompleted && (
                 <span className="ml-auto bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> Yakunlangan
+                  <CheckCircle className="w-3 h-3" /> Bajarildi
                 </span>
               )}
               {!isWeeklyCompleted && weeklyQuiz && (
@@ -318,81 +333,82 @@ export default function DashboardPage() {
 
             {isWeeklyCompleted ? (
               <>
-                <h3 className="text-lg font-black text-green-800 mb-1">{weeklyQuiz?.title}</h3>
-                <p className="text-green-600 text-sm mb-4">Haftalik musobaqani yakunladingiz! 🏆</p>
-                <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
-                  <CheckCircle className="w-4 h-4" /> Ball qo'shildi
-                </div>
+                <h3 className="text-base md:text-lg font-black text-green-800 mb-1">{weeklyQuiz?.title}</h3>
+                <p className="text-green-600 text-xs md:text-sm">Haftalik musobaqani yakunladingiz! 🏆</p>
               </>
             ) : weeklyQuiz ? (
               <>
-                <h3 className="text-xl font-black text-white mb-1">{weeklyQuiz.title}</h3>
-                <p className="text-gray-400 text-sm mb-5">
-                  {weeklyQuiz.time_limit / 60} daqiqa · {weeklyQuiz.score_per_question} ball/savol
+                <h3 className="text-lg md:text-xl font-black text-white mb-1">{weeklyQuiz.title}</h3>
+                {weeklyQuiz.deadline && (
+                  <p className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {formatDeadline(weeklyQuiz.deadline)} gacha
+                  </p>
+                )}
+                <p className="text-gray-400 text-xs md:text-sm mb-4">
+                  {weeklyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!
                 </p>
                 <button
                   onClick={() => router.push(`/quiz/${weeklyQuiz.id}`)}
-                  className="flex items-center gap-2 bg-violet-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-violet-700 transition"
+                  className="flex items-center gap-2 bg-violet-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-700 transition"
                 >
-                  Qatnashish <ChevronRight className="w-4 h-4" />
+                  Qatnashish <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
               </>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-gray-700 mb-1">Haftalik musobaqa</h3>
-                <p className="text-gray-400 text-sm">Hozircha faol musobaqa yo'q</p>
+                <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Haftalik musobaqa</h3>
+                <p className="text-gray-400 text-xs md:text-sm">Hozircha faol musobaqa yo'q</p>
               </>
             )}
           </div>
         </div>
 
         {/* Bottom grid */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-3 md:gap-4">
           {/* E'lonlar */}
           <div
             onClick={() => router.push('/announcements')}
-            className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
+            className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-black text-lg flex items-center gap-2">
-                <Bell className="w-5 h-5 text-violet-600" />
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <h2 className="font-black text-base md:text-lg flex items-center gap-2">
+                <Bell className="w-4 h-4 md:w-5 md:h-5 text-violet-600" />
                 E'lonlar
               </h2>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </div>
-            {announcementCount > 0 ? (
-              <p className="text-gray-500 text-sm">{announcementCount} ta e'lon mavjud</p>
-            ) : (
-              <p className="text-gray-400 text-sm">Hozircha e'lon yo'q</p>
-            )}
+            <p className="text-gray-400 text-xs md:text-sm">
+              {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : {"Hozircha e'lon yo'q"}
+            </p>
           </div>
 
           {/* Yutuqlar */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-black text-lg">Yutuqlar</h2>
-              <span className="text-sm text-gray-400">{achievements.length}/6 ochilgan</span>
+          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <h2 className="font-black text-base md:text-lg">Yutuqlar</h2>
+              <span className="text-xs md:text-sm text-gray-400">{achievements.length}/6</span>
             </div>
-            <div className="grid grid-cols-6 gap-2">
+            <div className="grid grid-cols-6 gap-1.5 md:gap-2">
               {allBadges.map((a, i) => {
                 const earned = earnedTitles.includes(a.title)
                 return (
                   <div
                     key={i}
                     title={a.title}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border transition ${
+                    className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border transition ${
                       earned
                         ? 'border-violet-200 bg-violet-50 shadow-sm'
                         : 'border-gray-100 bg-gray-50 opacity-40'
                     }`}
                   >
-                    <span className="text-xl">{a.icon}</span>
+                    <span className="text-lg md:text-xl">{a.icon}</span>
                   </div>
                 )
               })}
             </div>
             {achievements.length > 0 && (
-              <p className="text-xs text-violet-600 font-semibold mt-3">
+              <p className="text-xs text-violet-600 font-semibold mt-2 md:mt-3">
                 🎉 {achievements.length} ta yutuq qo'lga kiritildi!
               </p>
             )}

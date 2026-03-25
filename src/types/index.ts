@@ -31,6 +31,7 @@ export interface Quiz {
   score_per_question: number
   starts_at?: string
   ends_at?: string
+  deadline?: string | null 
   created_at: string
 }
 
