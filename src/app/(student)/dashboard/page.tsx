@@ -379,7 +379,7 @@ export default function DashboardPage() {
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </div>
             <p className="text-gray-400 text-xs md:text-sm">
-              {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : {"Hozircha e'lon yo'q"}
+           {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : "Hozircha e'lon yo'q"}
             </p>
           </div>
 
@@ -389,7 +389,7 @@ export default function DashboardPage() {
               <h2 className="font-black text-base md:text-lg">Yutuqlar</h2>
               <span className="text-xs md:text-sm text-gray-400">{achievements.length}/6</span>
             </div>
-            <div className="grid grid-cols-6 gap-1.5 md:gap-2">
+             <div className="grid grid-cols-6 gap-1.5 md:gap-2">
               {allBadges.map((a, i) => {
                 const earned = earnedTitles.includes(a.title)
                 return (
