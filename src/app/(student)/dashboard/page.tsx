@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile, Quiz } from '@/types'
+import Image from 'next/image'
 import {
   Trophy, Flame, Star, Target, TrendingUp,
   LogOut, Loader2, ChevronRight, Medal, Zap,
@@ -56,7 +57,6 @@ export default function DashboardPage() {
       }
 
       if (quizzes) {
-        // Deadline tekshirish
         const activeQuizzes = quizzes.filter(q => {
           if (!q.deadline) return true
           return new Date(q.deadline) > new Date()
@@ -93,7 +93,7 @@ export default function DashboardPage() {
     { icon: '🔥', title: '3 kunlik streak' },
     { icon: '⚡', title: '7 kunlik streak' },
     { icon: '🏆', title: 'Top 10' },
-    { icon: '👑', title: 'Hafta g\'olibi' },
+    { icon: '👑', title: "Hafta g'olibi" },
     { icon: '🤝', title: 'Guruh fidoyisi' },
   ]
 
@@ -108,16 +108,20 @@ export default function DashboardPage() {
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 md:py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 md:w-8 md:h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-              <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
-            </div>
-            <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
+            <Image src="/logo.png" alt="GULDU" width={32} height={32} className="rounded-lg object-cover" />
+              <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
           </div>
 
-          {/* Nav links */}
           <div className="flex items-center gap-0.5 md:gap-1">
+            <button
+              onClick={() => router.push('/quizzes')}
+              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+            >
+              <Zap className="w-4 h-4" />
+              <span className="hidden md:block">Quizlar</span>
+            </button>
+
             <button
               onClick={() => router.push('/leaderboard')}
               className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
@@ -153,7 +157,6 @@ export default function DashboardPage() {
               )}
             </button>
 
-            {/* Avatar / Profil */}
             <button
               onClick={() => router.push('/profile')}
               className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition ml-1"
@@ -255,11 +258,9 @@ export default function DashboardPage() {
         <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-5 md:mb-8">
           {/* Kunlik quiz */}
           <div className={`rounded-2xl p-5 md:p-6 border ${
-            isDailyCompleted
-              ? 'bg-green-50 border-green-200'
-              : dailyQuiz
-              ? 'bg-violet-600 border-violet-600'
-              : 'bg-white border-gray-100'
+            isDailyCompleted ? 'bg-green-50 border-green-200' :
+            dailyQuiz ? 'bg-violet-600 border-violet-600' :
+            'bg-white border-gray-100'
           }`}>
             <div className={`flex items-center gap-2 mb-3 ${
               isDailyCompleted ? 'text-green-600' : dailyQuiz ? 'text-violet-200' : 'text-gray-400'
@@ -304,17 +305,21 @@ export default function DashboardPage() {
               <>
                 <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Bugungi quiz</h3>
                 <p className="text-gray-400 text-xs md:text-sm">Hozircha faol quiz yo'q</p>
+                <button
+                  onClick={() => router.push('/quizzes/daily')}
+                  className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition"
+                >
+                  Barcha kunlik quizlarni ko'rish →
+                </button>
               </>
             )}
           </div>
 
           {/* Haftalik */}
           <div className={`rounded-2xl p-5 md:p-6 border ${
-            isWeeklyCompleted
-              ? 'bg-green-50 border-green-200'
-              : weeklyQuiz
-              ? 'bg-gray-900 border-gray-900'
-              : 'bg-white border-gray-100'
+            isWeeklyCompleted ? 'bg-green-50 border-green-200' :
+            weeklyQuiz ? 'bg-gray-900 border-gray-900' :
+            'bg-white border-gray-100'
           }`}>
             <div className={`flex items-center gap-2 mb-3 ${
               isWeeklyCompleted ? 'text-green-600' : weeklyQuiz ? 'text-gray-400' : 'text-gray-400'
@@ -359,6 +364,12 @@ export default function DashboardPage() {
               <>
                 <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Haftalik musobaqa</h3>
                 <p className="text-gray-400 text-xs md:text-sm">Hozircha faol musobaqa yo'q</p>
+                <button
+                  onClick={() => router.push('/quizzes/weekly')}
+                  className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition"
+                >
+                  Barcha haftalik quizlarni ko'rish →
+                </button>
               </>
             )}
           </div>
@@ -379,7 +390,7 @@ export default function DashboardPage() {
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </div>
             <p className="text-gray-400 text-xs md:text-sm">
-           {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : "Hozircha e'lon yo'q"}
+              {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : "Hozircha e'lon yo'q"}
             </p>
           </div>
 
@@ -389,7 +400,7 @@ export default function DashboardPage() {
               <h2 className="font-black text-base md:text-lg">Yutuqlar</h2>
               <span className="text-xs md:text-sm text-gray-400">{achievements.length}/6</span>
             </div>
-             <div className="grid grid-cols-6 gap-1.5 md:gap-2">
+            <div className="grid grid-cols-6 gap-1.5 md:gap-2">
               {allBadges.map((a, i) => {
                 const earned = earnedTitles.includes(a.title)
                 return (
@@ -397,9 +408,7 @@ export default function DashboardPage() {
                     key={i}
                     title={a.title}
                     className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border transition ${
-                      earned
-                        ? 'border-violet-200 bg-violet-50 shadow-sm'
-                        : 'border-gray-100 bg-gray-50 opacity-40'
+                      earned ? 'border-violet-200 bg-violet-50 shadow-sm' : 'border-gray-100 bg-gray-50 opacity-40'
                     }`}
                   >
                     <span className="text-lg md:text-xl">{a.icon}</span>
