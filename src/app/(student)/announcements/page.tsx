@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -59,10 +60,10 @@ export default function AnnouncementsPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-8 space-y-4">
+      <main className="max-w-3xl mx-auto px-6 py-8 space-y-4 pb-24 md:pb-0">
         {announcements.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-2xl text-center py-20 shadow-sm">
-            <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <Bell className="w-12 h-12 text-gray-300 mx-auto mb-no4" />
             <p className="text-gray-500 font-semibold">Hozircha e'lon yo'q</p>
             <p className="text-gray-400 text-sm mt-1">Yangi e'lonlar bu yerda ko'rinadi</p>
           </div>
@@ -98,6 +99,7 @@ export default function AnnouncementsPage() {
           ))
         )}
       </main>
+         <BottomNav />
     </div>
-  )
+    )
 }

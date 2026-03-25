@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -180,7 +181,7 @@ export default function ProfilePage() {
         </div>
       </nav>
 
-      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6 pb-24 md:pb-0">
 
         {success && (
           <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-semibold flex items-center gap-2">
@@ -377,6 +378,7 @@ export default function ProfilePage() {
           {saving ? 'Saqlanmoqda...' : 'O\'zgarishlarni saqlash'}
         </button>
       </main>
+       <BottomNav />
     </div>
   )
 }

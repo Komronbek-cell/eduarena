@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +12,7 @@ interface LeaderboardEntry {
   full_name: string
   total_score: number
   streak: number
+  avatar_url: string | null
   groups: { name: string } | null
 }
 
@@ -38,7 +40,7 @@ export default function LeaderboardPage() {
       setCurrentUserId(user.id)
 
       const [{ data: students }, { data: attemptsData }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, total_score, streak, groups(name)').eq('role', 'student'),
+        supabase.from('profiles').select('id, full_name, total_score, streak, avatar_url groups(name)').eq('role', 'student'),
         supabase.from('quiz_attempts').select('user_id, score, completed_at'),
       ])
 
@@ -128,7 +130,7 @@ export default function LeaderboardPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 md:py-8">
+      <main className="max-w-3xl mx-auto px-4 py-6 md:py-8 pb-24 md:pb-0">
 
         {/* Period tabs */}
         <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl">
@@ -199,7 +201,7 @@ export default function LeaderboardPage() {
                               ? 'border-white bg-violet-100 text-violet-700'
                               : 'border-white/30 bg-white/20 text-white'
                           }`}>
-                            {student.full_name.charAt(0)}
+                            {student.avatar_url ? <img src={student.avatar_url} className="w-full h-full object-cover" /> : student.full_name.charAt(0)}
                             {isCurrentUser && (
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white" />
                             )}
@@ -303,7 +305,7 @@ export default function LeaderboardPage() {
                         ? `bg-gradient-to-br from-amber-100 to-amber-200 ${rankColors[rank - 1]}`
                         : 'bg-gray-100 text-gray-600'
                     }`}>
-                      {student.full_name.charAt(0)}
+                      {student.avatar_url ? <img src={student.avatar_url} className="w-full h-full object-cover" /> : student.full_name.charAt(0)}
                     </div>
 
                     {/* Info */}
@@ -365,6 +367,7 @@ export default function LeaderboardPage() {
           </>
         )}
       </main>
+        <BottomNav />
     </div>
   )
 }

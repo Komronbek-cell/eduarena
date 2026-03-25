@@ -1,5 +1,6 @@
 'use client'
 
+import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -91,7 +92,7 @@ export default function HistoryPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-3xl mx-auto px-6 py-8 pb-24 md:pb-0">
 
         {attempts.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-2xl text-center py-20 shadow-sm">
@@ -199,6 +200,7 @@ export default function HistoryPage() {
           </>
         )}
       </main>
+       <BottomNav />
     </div>
   )
 }
