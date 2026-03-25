@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Trophy, Medal, ArrowLeft, Loader2, Crown, Flame } from 'lucide-react'
+import { Trophy, Medal, ArrowLeft, Loader2, Crown, Flame, Star, TrendingUp, Zap, Users } from 'lucide-react'
+import Image from 'next/image'
 
 interface LeaderboardEntry {
   id: string
@@ -13,10 +14,20 @@ interface LeaderboardEntry {
   groups: { name: string } | null
 }
 
+interface AttemptStat {
+  user_id: string
+  score: number
+  completed_at: string
+}
+
+type Period = 'all' | 'weekly' | 'monthly' | 'daily'
+
 export default function LeaderboardPage() {
   const router = useRouter()
-  const [students, setStudents] = useState<LeaderboardEntry[]>([])
+  const [allStudents, setAllStudents] = useState<LeaderboardEntry[]>([])
+  const [attempts, setAttempts] = useState<AttemptStat[]>([])
   const [currentUserId, setCurrentUserId] = useState<string>('')
+  const [period, setPeriod] = useState<Period>('all')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,18 +37,50 @@ export default function LeaderboardPage() {
       if (!user) { router.push('/login'); return }
       setCurrentUserId(user.id)
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, total_score, streak, groups(name)')
-        .eq('role', 'student')
-        .order('total_score', { ascending: false })
-        .limit(50)
+      const [{ data: students }, { data: attemptsData }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, total_score, streak, groups(name)').eq('role', 'student'),
+        supabase.from('quiz_attempts').select('user_id, score, completed_at'),
+      ])
 
-      setStudents((data as any) ?? [])
+      setAllStudents((students as any) ?? [])
+      setAttempts(attemptsData ?? [])
       setLoading(false)
     }
     fetchData()
   }, [router])
+
+  const getFilteredStudents = (): LeaderboardEntry[] => {
+    if (period === 'all') {
+      return [...allStudents].sort((a, b) => b.total_score - a.total_score)
+    }
+
+    const now = new Date()
+    let startDate: Date
+
+    if (period === 'daily') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    } else if (period === 'weekly') {
+      const day = now.getDay()
+      startDate = new Date(now)
+      startDate.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+      startDate.setHours(0, 0, 0, 0)
+    } else {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+    }
+
+    // Filtr davr bo'yicha ball hisoblash
+    const scoreMap: Record<string, number> = {}
+    attempts.forEach(a => {
+      if (new Date(a.completed_at) >= startDate) {
+        scoreMap[a.user_id] = (scoreMap[a.user_id] ?? 0) + a.score
+      }
+    })
+
+    return allStudents
+      .map(s => ({ ...s, total_score: scoreMap[s.id] ?? 0 }))
+      .filter(s => s.total_score > 0)
+      .sort((a, b) => b.total_score - a.total_score)
+  }
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -45,27 +88,39 @@ export default function LeaderboardPage() {
     </div>
   )
 
+  const students = getFilteredStudents()
   const top3 = students.slice(0, 3)
+  const rest = students.slice(3)
   const currentRank = students.findIndex(s => s.id === currentUserId) + 1
 
-  const podiumOrder = top3.length === 3 ? [top3[1], top3[0], top3[2]] : top3
+  const periodLabels: Record<Period, string> = {
+    all: 'Umumiy',
+    daily: 'Bugun',
+    weekly: 'Bu hafta',
+    monthly: 'Bu oy',
+  }
+
   const podiumConfig = [
-    { height: 'h-20 md:h-28', bg: 'bg-gray-100', textColor: 'text-gray-600', rank: 2 },
-    { height: 'h-28 md:h-36', bg: 'bg-violet-600', textColor: 'text-white', rank: 1 },
-    { height: 'h-16 md:h-24', bg: 'bg-amber-100', textColor: 'text-amber-700', rank: 3 },
+    { index: 1, heightClass: 'h-24 md:h-32', bg: 'bg-gradient-to-b from-slate-400 to-slate-500', rank: 2 },
+    { index: 0, heightClass: 'h-32 md:h-44', bg: 'bg-gradient-to-b from-violet-500 to-violet-700', rank: 1 },
+    { index: 2, heightClass: 'h-20 md:h-28', bg: 'bg-gradient-to-b from-amber-400 to-amber-600', rank: 3 },
   ]
+
+  const medals = ['🥇', '🥈', '🥉']
+  const rankColors = ['text-yellow-500', 'text-slate-400', 'text-amber-500']
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Navbar */}
       <nav className="bg-white border-b border-gray-100 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-gray-600 transition">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <Trophy className="w-5 h-5 text-violet-600" />
+          <Image src="/logo.png" alt="GULDU" width={28} height={28} className="rounded-md object-cover" />
           <span className="font-black text-base md:text-lg">Reyting jadvali</span>
           {currentRank > 0 && (
-            <div className="ml-auto flex items-center gap-1.5 bg-violet-50 text-violet-600 px-2.5 py-1.5 rounded-xl text-xs md:text-sm font-bold border border-violet-100">
+            <div className="ml-auto flex items-center gap-1.5 bg-violet-50 text-violet-600 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold border border-violet-100">
               <Medal className="w-3 h-3 md:w-3.5 md:h-3.5" />
               #{currentRank}
             </div>
@@ -74,106 +129,241 @@ export default function LeaderboardPage() {
       </nav>
 
       <main className="max-w-3xl mx-auto px-4 py-6 md:py-8">
-        {/* Podium */}
-        {top3.length > 0 && (
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-8 mb-5 shadow-sm">
-            <h2 className="text-center font-black text-base md:text-lg mb-5 md:mb-8">🏆 Top 3</h2>
-            <div className="flex items-end justify-center gap-3 md:gap-6">
-              {podiumOrder.map((student, i) => {
-                const config = podiumConfig[i]
-                const isFirst = config.rank === 1
+
+        {/* Period tabs */}
+        <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl">
+          {(['all', 'daily', 'weekly', 'monthly'] as Period[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`flex-1 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition ${
+                period === p
+                  ? 'bg-white text-violet-700 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {periodLabels[p]}
+            </button>
+          ))}
+        </div>
+
+        {students.length === 0 ? (
+          <div className="bg-white border border-gray-100 rounded-2xl text-center py-16 shadow-sm">
+            <Trophy className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 font-semibold">
+              {period === 'all' ? 'Hali hech kim ro\'yxatdan o\'tmagan' : 'Bu davrda hali natija yo\'q'}
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              {period !== 'all' && 'Quiz yechib birinchi bo\'ling!'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Hero podium */}
+            {top3.length > 0 && (
+              <div className="bg-gradient-to-b from-violet-600 to-violet-800 rounded-3xl p-6 md:p-8 mb-5 relative overflow-hidden">
+                {/* Background decoration */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute top-4 left-8 w-32 h-32 bg-white rounded-full blur-3xl" />
+                  <div className="absolute bottom-4 right-8 w-24 h-24 bg-yellow-300 rounded-full blur-2xl" />
+                </div>
+
+                <div className="relative">
+                  <div className="text-center mb-6 md:mb-8">
+                    <p className="text-violet-200 text-xs font-bold uppercase tracking-widest mb-1">
+                      {periodLabels[period]} · Top talabalar
+                    </p>
+                    <h2 className="text-xl md:text-2xl font-black text-white">🏆 Yetakchilar</h2>
+                  </div>
+
+                  <div className="flex items-end justify-center gap-3 md:gap-6">
+                    {podiumConfig.map((config) => {
+                      const student = top3[config.index]
+                      if (!student) return null
+                      const isFirst = config.rank === 1
+                      const isCurrentUser = student.id === currentUserId
+
+                      return (
+                        <div key={student.id} className="flex flex-col items-center gap-2 flex-1 max-w-[110px] md:max-w-[150px]">
+                          {isFirst && (
+                            <div className="relative">
+                              <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-300" />
+                            </div>
+                          )}
+
+                          {/* Avatar */}
+                          <div className={`relative w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center font-black text-lg md:text-2xl border-4 ${
+                            isFirst
+                              ? 'border-yellow-300 bg-yellow-100 text-yellow-700 shadow-lg shadow-yellow-300/30'
+                              : isCurrentUser
+                              ? 'border-white bg-violet-100 text-violet-700'
+                              : 'border-white/30 bg-white/20 text-white'
+                          }`}>
+                            {student.full_name.charAt(0)}
+                            {isCurrentUser && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white" />
+                            )}
+                          </div>
+
+                          {/* Name & score */}
+                          <div className="text-center">
+                            <p className={`font-black text-xs md:text-sm truncate max-w-full px-1 ${isFirst ? 'text-yellow-200' : 'text-white/90'}`}>
+                              {student.full_name.split(' ')[0]}
+                            </p>
+                            <div className={`flex items-center justify-center gap-0.5 text-xs font-bold mt-0.5 ${
+                              isFirst ? 'text-yellow-300' : 'text-white/70'
+                            }`}>
+                              <Star className="w-3 h-3" />
+                              {student.total_score}
+                            </div>
+                            {student.streak > 0 && (
+                              <div className="flex items-center justify-center gap-0.5 text-xs text-orange-300 mt-0.5">
+                                <Flame className="w-2.5 h-2.5" />{student.streak}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Podium bar */}
+                          <div className={`w-full ${config.heightClass} ${config.bg} rounded-t-2xl flex flex-col items-center justify-center gap-1 shadow-lg`}>
+                            <span className="text-xl md:text-3xl">{medals[config.rank - 1]}</span>
+                            <span className="text-white font-black text-sm md:text-base">#{config.rank}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Current user highlight (if not in top) */}
+            {currentRank > 3 && (
+              <div className="bg-violet-50 border-2 border-violet-200 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-violet-600 text-white flex items-center justify-center font-black text-sm flex-shrink-0">
+                  {allStudents.find(s => s.id === currentUserId)?.full_name?.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <p className="font-black text-violet-700 text-sm">Sizning o'rningiz</p>
+                  <p className="text-xs text-violet-500">
+                    {students.find(s => s.id === currentUserId)?.groups?.name ?? 'Guruhsiz'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-black text-violet-600">#{currentRank}</div>
+                  <div className="flex items-center gap-0.5 text-xs text-violet-500 justify-end">
+                    <Star className="w-3 h-3" />
+                    {students.find(s => s.id === currentUserId)?.total_score ?? 0}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Full list */}
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-4 md:px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h2 className="font-black text-sm md:text-base flex items-center gap-2">
+                  <Users className="w-4 h-4 text-violet-600" />
+                  Barcha talabalar
+                </h2>
+                <span className="text-xs md:text-sm text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full font-semibold">
+                  {students.length} ta
+                </span>
+              </div>
+
+              {students.map((student, index) => {
+                const isCurrentUser = student.id === currentUserId
+                const rank = index + 1
+                const isTop3 = rank <= 3
+
                 return (
-                  <div key={student.id} className="flex flex-col items-center gap-1.5 md:gap-2 flex-1 max-w-[100px] md:max-w-none">
-                    {isFirst && <Crown className="w-5 h-5 md:w-6 md:h-6 text-yellow-500" />}
-                    <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center font-black text-base md:text-lg border-2 ${
-                      isFirst ? 'border-violet-300 bg-violet-100 text-violet-700' : 'border-gray-200 bg-gray-100 text-gray-600'
+                  <div
+                    key={student.id}
+                    className={`flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 border-b border-gray-50 last:border-0 transition ${
+                      isCurrentUser
+                        ? 'bg-violet-50'
+                        : isTop3
+                        ? 'bg-amber-50/30'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {/* Rank */}
+                    <div className="w-7 md:w-8 text-center flex-shrink-0">
+                      {isTop3 ? (
+                        <span className="text-base md:text-lg">{medals[rank - 1]}</span>
+                      ) : (
+                        <span className="text-gray-400 text-xs md:text-sm font-mono font-bold">#{rank}</span>
+                      )}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 ${
+                      isCurrentUser
+                        ? 'bg-violet-600 text-white ring-2 ring-violet-300'
+                        : isTop3
+                        ? `bg-gradient-to-br from-amber-100 to-amber-200 ${rankColors[rank - 1]}`
+                        : 'bg-gray-100 text-gray-600'
                     }`}>
                       {student.full_name.charAt(0)}
                     </div>
-                    <p className="font-bold text-xs md:text-sm text-center truncate w-full px-1">{student.full_name.split(' ')[0]}</p>
-                    <p className="text-xs text-gray-400">{student.total_score}</p>
-                    <div className={`w-full ${config.height} ${config.bg} rounded-t-xl md:rounded-t-2xl flex items-center justify-center`}>
-                      <span className={`font-black text-base md:text-xl ${config.textColor}`}>
-                        {config.rank === 1 ? '🥇' : config.rank === 2 ? '🥈' : '🥉'}
-                      </span>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className={`font-bold text-xs md:text-sm truncate ${
+                          isCurrentUser ? 'text-violet-700' : isTop3 ? 'text-gray-900' : 'text-gray-800'
+                        }`}>
+                          {student.full_name}
+                        </p>
+                        {isCurrentUser && (
+                          <span className="text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">Siz</span>
+                        )}
+                        {rank === 1 && (
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">👑 Yetakchi</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                        <span>{student.groups?.name ?? 'Guruhsiz'}</span>
+                        {student.streak > 0 && (
+                          <span className="flex items-center gap-0.5 text-orange-500">
+                            <Flame className="w-2.5 h-2.5" />{student.streak} kun
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Score */}
+                    <div className="text-right flex-shrink-0">
+                      <div className={`flex items-center gap-1 font-black text-sm md:text-base ${
+                        isCurrentUser ? 'text-violet-600' : isTop3 ? 'text-amber-600' : 'text-gray-800'
+                      }`}>
+                        <Star className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                        {student.total_score}
+                      </div>
+                      {index > 0 && students[index - 1].total_score > student.total_score && (
+                        <div className="text-xs text-gray-300 mt-0.5">
+                          -{students[index - 1].total_score - student.total_score}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
               })}
             </div>
-          </div>
-        )}
 
-        {/* Full list */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-4 md:px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="font-black text-sm md:text-base">Barcha talabalar</h2>
-            <span className="text-xs md:text-sm text-gray-400">{students.length} ta</span>
-          </div>
-
-          {students.length === 0 ? (
-            <div className="text-center py-12">
-              <Trophy className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-              <p className="text-gray-400 text-sm">Hali hech kim ro'yxatdan o'tmagan</p>
+            {/* Motivatsiya */}
+            <div className="mt-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 rounded-2xl px-4 py-4 flex items-center gap-3">
+              <TrendingUp className="w-5 h-5 text-violet-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-violet-700">
+                  {currentRank === 1 ? '🎉 Siz birinchi o\'rindaSIZ! Ustunlikni saqlang!' :
+                   currentRank <= 3 ? `💪 Top 3 dasiZ! 1-o'ringa ${students[0]?.total_score - (students.find(s => s.id === currentUserId)?.total_score ?? 0)} ball qoldi!` :
+                   currentRank > 0 ? `🚀 ${currentRank}-o\'rindaSIZ. Yuqoriga chiqish uchun har kuni quiz yeching!` :
+                   '🎯 Birinchi quizni yeching va reytingga kiring!'}
+                </p>
+              </div>
             </div>
-          ) : (
-            students.map((student, index) => {
-              const isCurrentUser = student.id === currentUserId
-              const rank = index + 1
-              return (
-                <div
-                  key={student.id}
-                  className={`flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 border-b border-gray-50 last:border-0 transition ${
-                    isCurrentUser ? 'bg-violet-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  {/* Rank */}
-                  <div className="w-6 md:w-8 text-center flex-shrink-0">
-                    {rank === 1 ? <span className="text-base md:text-lg">🥇</span>
-                      : rank === 2 ? <span className="text-base md:text-lg">🥈</span>
-                      : rank === 3 ? <span className="text-base md:text-lg">🥉</span>
-                      : <span className="text-gray-400 text-xs md:text-sm font-mono">#{rank}</span>}
-                  </div>
-
-                  {/* Avatar */}
-                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-black text-xs md:text-sm flex-shrink-0 ${
-                    isCurrentUser ? 'bg-violet-600 text-white' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {student.full_name.charAt(0)}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className={`font-bold text-xs md:text-sm truncate ${isCurrentUser ? 'text-violet-700' : 'text-gray-900'}`}>
-                        {student.full_name}
-                      </p>
-                      {isCurrentUser && (
-                        <span className="text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-bold flex-shrink-0">Siz</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
-                      {student.groups?.name ?? 'Guruhsiz'}
-                      {student.streak > 0 && (
-                        <span className="flex items-center gap-0.5 text-orange-500">
-                          <Flame className="w-2.5 h-2.5" />{student.streak}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Score */}
-                  <div className={`flex items-center gap-1 font-black text-sm md:text-base flex-shrink-0 ${
-                    isCurrentUser ? 'text-violet-600' : 'text-gray-900'
-                  }`}>
-                    <Medal className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                    {student.total_score}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
+          </>
+        )}
       </main>
     </div>
   )
