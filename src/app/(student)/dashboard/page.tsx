@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [completedQuizIds, setCompletedQuizIds] = useState<string[]>([])
   const [achievements, setAchievements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [animated, setAnimated] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,6 +68,7 @@ export default function DashboardPage() {
       }
 
       setLoading(false)
+      setTimeout(() => setAnimated(true), 100)
     }
     fetchData()
   }, [router])
@@ -79,7 +81,12 @@ export default function DashboardPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg">
+          <Image src="/logo.png" alt="GULDU" width={64} height={64} className="object-cover" />
+        </div>
+        <Loader2 className="w-5 h-5 text-violet-500 animate-spin" />
+      </div>
     </div>
   )
 
@@ -104,64 +111,45 @@ export default function DashboardPage() {
     })
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 6) return "Kechasi ham o'qiyapsiz"
+    if (hour < 12) return "Xayrli tong"
+    if (hour < 17) return "Xayrli kun"
+    if (hour < 21) return "Xayrli kech"
+    return "Xayrli tun"
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 md:py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="GULDU" width={32} height={32} className="rounded-lg object-cover" />
-              <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
+            <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
           </div>
 
-          <div className="flex items-center gap-0.5 md:gap-1">
-            <button
-              onClick={() => router.push('/quizzes')}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Zap className="w-4 h-4" />
-              <span className="hidden md:block">Quizlar</span>
+          {/* Desktop nav — faqat md va undan katta */}
+          <div className="hidden md:flex items-center gap-1">
+            <button onClick={() => router.push('/quizzes')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <Zap className="w-4 h-4" /> Quizlar
             </button>
-
-            <button
-              onClick={() => router.push('/leaderboard')}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Medal className="w-4 h-4" />
-              <span className="hidden md:block">Reyting</span>
+            <button onClick={() => router.push('/leaderboard')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <Medal className="w-4 h-4" /> Reyting
             </button>
-
-            <button
-              onClick={() => router.push('/groups')}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden md:block">Guruhlar</span>
+            <button onClick={() => router.push('/groups')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <Users className="w-4 h-4" /> Guruhlar
             </button>
-
-            <button
-              onClick={() => router.push('/history')}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-            >
-              <History className="w-4 h-4" />
-              <span className="hidden md:block">Tarix</span>
+            <button onClick={() => router.push('/history')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <History className="w-4 h-4" /> Tarix
             </button>
-
-            <button
-              onClick={() => router.push('/announcements')}
-              className="relative flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="hidden md:block">E'lonlar</span>
-              {announcementCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              )}
+            <button onClick={() => router.push('/announcements')} className="relative flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <Bell className="w-4 h-4" /> E'lonlar
+              {announcementCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
             </button>
-
-            <button
-              onClick={() => router.push('/profile')}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-500 hover:text-gray-900 px-2 md:px-3 py-2 rounded-lg hover:bg-gray-50 transition ml-1"
-            >
+            <button onClick={() => router.push('/profile')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition ml-1">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
               ) : (
@@ -169,75 +157,78 @@ export default function DashboardPage() {
                   <span className="text-xs font-black text-violet-600">{profile?.full_name?.charAt(0)}</span>
                 </div>
               )}
-              <span className="hidden md:block">Profil</span>
+              Profil
             </button>
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-500 px-3 py-2 rounded-lg transition">
+              <LogOut className="w-4 h-4" /> Chiqish
+            </button>
+          </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-red-500 px-2 md:px-3 py-2 rounded-lg transition"
-            >
+          {/* Mobile — faqat logout va profil */}
+          <div className="flex md:hidden items-center gap-1">
+            <button onClick={() => router.push('/profile')} className="flex items-center">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover border-2 border-violet-200" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
+                  <span className="text-sm font-black text-violet-600">{profile?.full_name?.charAt(0)}</span>
+                </div>
+              )}
+            </button>
+            <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 p-2 rounded-lg transition">
               <LogOut className="w-4 h-4" />
-              <span className="hidden md:block">Chiqish</span>
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8 pb-24 md:pb-0">
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8 pb-24 md:pb-8">
 
         {/* Welcome */}
-        <div className="mb-5 md:mb-8 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-gray-900">
-              Salom, {profile?.full_name?.split(' ')[0]} 👋
-            </h1>
-            <p className="text-gray-400 mt-0.5 text-xs md:text-sm">
-              {groupName ? `${groupName} guruhi` : 'Guruh belgilanmagan'} · Bugun ham g'alaba qozonish vaqti!
-            </p>
-          </div>
-          {profile?.streak && profile.streak > 0 ? (
-            <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-600 px-3 py-1.5 rounded-xl flex-shrink-0">
-              <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="font-bold text-xs md:text-sm">{profile.streak} kun</span>
+        <div className={`mb-5 md:mb-8 transition-all duration-700 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">{getGreeting()},</p>
+              <h1 className="text-xl md:text-2xl font-black text-gray-900">
+                {profile?.full_name?.split(' ')[0]} 👋
+              </h1>
+              <p className="text-gray-400 mt-0.5 text-xs md:text-sm">
+                {groupName ? `${groupName} guruhi` : 'Guruh belgilanmagan'} · Bugun ham g'alaba qozonish vaqti!
+              </p>
             </div>
-          ) : null}
+            {profile?.streak && profile.streak > 0 ? (
+              <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-600 px-3 py-1.5 rounded-xl flex-shrink-0">
+                <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                <span className="font-bold text-xs md:text-sm">{profile.streak} kun 🔥</span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Rank banner — faqat top 3 da */}
+          {rank > 0 && rank <= 3 && (
+            <div className={`mt-3 bg-gradient-to-r ${
+              rank === 1 ? 'from-yellow-400 to-amber-500' :
+              rank === 2 ? 'from-slate-400 to-slate-500' :
+              'from-amber-500 to-orange-500'
+            } rounded-2xl px-4 py-3 flex items-center gap-3`}>
+              <span className="text-2xl">{rank === 1 ? '👑' : rank === 2 ? '🥈' : '🥉'}</span>
+              <div>
+                <p className="font-black text-white text-sm">
+                  {rank === 1 ? 'Siz reytingda BIRINCHISIZ!' : `Siz reytingda #${rank} o'rindaSIZ!`}
+                </p>
+                <p className="text-white/70 text-xs">Ustunlikni saqlang!</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-8">
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-8 transition-all duration-700 delay-100 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            {
-              icon: <Star className="w-4 h-4 md:w-5 md:h-5" />,
-              color: 'text-violet-600 bg-violet-50',
-              label: 'Umumiy ball',
-              value: profile?.total_score ?? 0,
-              suffix: '',
-              onClick: () => router.push('/leaderboard'),
-            },
-            {
-              icon: <Flame className="w-4 h-4 md:w-5 md:h-5" />,
-              color: 'text-orange-500 bg-orange-50',
-              label: 'Streak',
-              value: profile?.streak ?? 0,
-              suffix: ' kun',
-              onClick: null,
-            },
-            {
-              icon: <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />,
-              color: 'text-green-600 bg-green-50',
-              label: 'Reyting',
-              value: rank > 0 ? `#${rank}` : '#—',
-              suffix: '',
-              onClick: () => router.push('/leaderboard'),
-            },
-            {
-              icon: <Target className="w-4 h-4 md:w-5 md:h-5" />,
-              color: 'text-blue-600 bg-blue-50',
-              label: 'Quizlar',
-              value: quizCount,
-              suffix: ' ta',
-              onClick: () => router.push('/history'),
-            },
+            { icon: <Star className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-violet-600 bg-violet-50', label: 'Umumiy ball', value: profile?.total_score ?? 0, suffix: '', onClick: () => router.push('/leaderboard') },
+            { icon: <Flame className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-orange-500 bg-orange-50', label: 'Streak', value: profile?.streak ?? 0, suffix: ' kun', onClick: null },
+            { icon: <TrendingUp className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-green-600 bg-green-50', label: 'Reyting', value: rank > 0 ? `#${rank}` : '#—', suffix: '', onClick: () => router.push('/leaderboard') },
+            { icon: <Target className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-blue-600 bg-blue-50', label: 'Quizlar', value: quizCount, suffix: ' ta', onClick: () => router.push('/history') },
           ].map((s, i) => (
             <div
               key={i}
@@ -256,11 +247,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Quiz kartalar */}
-        <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-5 md:mb-8">
+        <div className={`grid md:grid-cols-2 gap-3 md:gap-4 mb-5 md:mb-8 transition-all duration-700 delay-200 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Kunlik quiz */}
-          <div className={`rounded-2xl p-5 md:p-6 border ${
+          <div className={`rounded-2xl p-5 md:p-6 border transition-all ${
             isDailyCompleted ? 'bg-green-50 border-green-200' :
-            dailyQuiz ? 'bg-violet-600 border-violet-600' :
+            dailyQuiz ? 'bg-violet-600 border-violet-600 shadow-lg shadow-violet-200' :
             'bg-white border-gray-100'
           }`}>
             <div className={`flex items-center gap-2 mb-3 ${
@@ -274,7 +265,7 @@ export default function DashboardPage() {
                 </span>
               )}
               {!isDailyCompleted && dailyQuiz && (
-                <span className="ml-auto bg-white/20 text-white text-xs px-2 py-0.5 rounded-full">Faol</span>
+                <span className="ml-auto bg-white/20 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">● Faol</span>
               )}
             </div>
 
@@ -286,18 +277,15 @@ export default function DashboardPage() {
             ) : dailyQuiz ? (
               <>
                 <h3 className="text-lg md:text-xl font-black text-white mb-1">{dailyQuiz.title}</h3>
-                {dailyQuiz.deadline && (
+                {(dailyQuiz as any).deadline && (
                   <p className="text-violet-200 text-xs mb-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDeadline(dailyQuiz.deadline)} gacha
+                    <Calendar className="w-3 h-3" />{formatDeadline((dailyQuiz as any).deadline)} gacha
                   </p>
                 )}
-                <p className="text-violet-200 text-xs md:text-sm mb-4">
-                  {dailyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!
-                </p>
+                <p className="text-violet-200 text-xs md:text-sm mb-4">{dailyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!</p>
                 <button
                   onClick={() => router.push(`/quiz/${dailyQuiz.id}`)}
-                  className="flex items-center gap-2 bg-white text-violet-700 font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-50 transition"
+                  className="flex items-center gap-2 bg-white text-violet-700 font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-50 transition shadow-md"
                 >
                   Boshlash <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
@@ -306,10 +294,7 @@ export default function DashboardPage() {
               <>
                 <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Bugungi quiz</h3>
                 <p className="text-gray-400 text-xs md:text-sm">Hozircha faol quiz yo'q</p>
-                <button
-                  onClick={() => router.push('/quizzes/daily')}
-                  className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition"
-                >
+                <button onClick={() => router.push('/quizzes/daily')} className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition">
                   Barcha kunlik quizlarni ko'rish →
                 </button>
               </>
@@ -317,9 +302,9 @@ export default function DashboardPage() {
           </div>
 
           {/* Haftalik */}
-          <div className={`rounded-2xl p-5 md:p-6 border ${
+          <div className={`rounded-2xl p-5 md:p-6 border transition-all ${
             isWeeklyCompleted ? 'bg-green-50 border-green-200' :
-            weeklyQuiz ? 'bg-gray-900 border-gray-900' :
+            weeklyQuiz ? 'bg-gray-900 border-gray-900 shadow-lg shadow-gray-300' :
             'bg-white border-gray-100'
           }`}>
             <div className={`flex items-center gap-2 mb-3 ${
@@ -333,7 +318,7 @@ export default function DashboardPage() {
                 </span>
               )}
               {!isWeeklyCompleted && weeklyQuiz && (
-                <span className="ml-auto bg-white/10 text-gray-300 text-xs px-2 py-0.5 rounded-full">Faol</span>
+                <span className="ml-auto bg-white/10 text-gray-300 text-xs px-2 py-0.5 rounded-full animate-pulse">● Faol</span>
               )}
             </div>
 
@@ -345,15 +330,12 @@ export default function DashboardPage() {
             ) : weeklyQuiz ? (
               <>
                 <h3 className="text-lg md:text-xl font-black text-white mb-1">{weeklyQuiz.title}</h3>
-                {weeklyQuiz.deadline && (
+                {(weeklyQuiz as any).deadline && (
                   <p className="text-gray-400 text-xs mb-1 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDeadline(weeklyQuiz.deadline)} gacha
+                    <Calendar className="w-3 h-3" />{formatDeadline((weeklyQuiz as any).deadline)} gacha
                   </p>
                 )}
-                <p className="text-gray-400 text-xs md:text-sm mb-4">
-                  {weeklyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!
-                </p>
+                <p className="text-gray-400 text-xs md:text-sm mb-4">{weeklyQuiz.time_limit / 60} daqiqa · Vaqt bonuslari bor!</p>
                 <button
                   onClick={() => router.push(`/quiz/${weeklyQuiz.id}`)}
                   className="flex items-center gap-2 bg-violet-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-700 transition"
@@ -365,10 +347,7 @@ export default function DashboardPage() {
               <>
                 <h3 className="text-base md:text-lg font-bold text-gray-700 mb-1">Haftalik musobaqa</h3>
                 <p className="text-gray-400 text-xs md:text-sm">Hozircha faol musobaqa yo'q</p>
-                <button
-                  onClick={() => router.push('/quizzes/weekly')}
-                  className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition"
-                >
+                <button onClick={() => router.push('/quizzes/weekly')} className="mt-3 text-xs text-violet-500 font-semibold hover:text-violet-700 transition">
                   Barcha haftalik quizlarni ko'rish →
                 </button>
               </>
@@ -377,7 +356,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom grid */}
-        <div className="grid md:grid-cols-2 gap-3 md:gap-4">
+        <div className={`grid md:grid-cols-2 gap-3 md:gap-4 transition-all duration-700 delay-300 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* E'lonlar */}
           <div
             onClick={() => router.push('/announcements')}
@@ -387,11 +366,14 @@ export default function DashboardPage() {
               <h2 className="font-black text-base md:text-lg flex items-center gap-2">
                 <Bell className="w-4 h-4 md:w-5 md:h-5 text-violet-600" />
                 E'lonlar
+                {announcementCount > 0 && (
+                  <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{announcementCount}</span>
+                )}
               </h2>
               <ChevronRight className="w-4 h-4 text-gray-400" />
             </div>
             <p className="text-gray-400 text-xs md:text-sm">
-              {announcementCount > 0 ? `${announcementCount} ta e'lon mavjud` : "Hozircha e'lon yo'q"}
+              {announcementCount > 0 ? `${announcementCount} ta yangi e'lon mavjud` : "Hozircha e'lon yo'q"}
             </p>
           </div>
 
@@ -399,7 +381,9 @@ export default function DashboardPage() {
           <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className="font-black text-base md:text-lg">Yutuqlar</h2>
-              <span className="text-xs md:text-sm text-gray-400">{achievements.length}/6</span>
+              <span className="text-xs md:text-sm font-bold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full">
+                {achievements.length}/6
+              </span>
             </div>
             <div className="grid grid-cols-6 gap-1.5 md:gap-2">
               {allBadges.map((a, i) => {
@@ -409,7 +393,9 @@ export default function DashboardPage() {
                     key={i}
                     title={a.title}
                     className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border transition ${
-                      earned ? 'border-violet-200 bg-violet-50 shadow-sm' : 'border-gray-100 bg-gray-50 opacity-40'
+                      earned
+                        ? 'border-violet-200 bg-violet-50 shadow-sm scale-110'
+                        : 'border-gray-100 bg-gray-50 opacity-40'
                     }`}
                   >
                     <span className="text-lg md:text-xl">{a.icon}</span>
@@ -422,6 +408,9 @@ export default function DashboardPage() {
                 🎉 {achievements.length} ta yutuq qo'lga kiritildi!
               </p>
             )}
+            {achievements.length === 0 && (
+              <p className="text-xs text-gray-400 mt-2">Birinchi quizni yakunlang — badge oling!</p>
+            )}
           </div>
         </div>
       </main>
@@ -429,4 +418,3 @@ export default function DashboardPage() {
     </div>
   )
 }
- 
