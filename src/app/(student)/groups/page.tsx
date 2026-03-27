@@ -4,7 +4,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Trophy, Users, TrendingUp, Flame, Loader2, Star, Crown } from 'lucide-react'
+import { ArrowLeft, Trophy, Users, TrendingUp, Flame, Loader2, Star, Crown, ChevronRight } from 'lucide-react'
 
 interface GroupStat {
   id: string
@@ -33,9 +33,10 @@ export default function GroupsPage() {
         .from('profiles').select('group_id').eq('id', user.id).single()
       setCurrentGroupId(profileData?.group_id ?? null)
 
-      const { data: groupsData } = await supabase.from('groups').select('id, name, description')
-      const { data: students } = await supabase
-        .from('profiles').select('group_id, total_score, streak, full_name').eq('role', 'student')
+      const [{ data: groupsData }, { data: students }] = await Promise.all([
+        supabase.from('groups').select('id, name, description'),
+        supabase.from('profiles').select('group_id, total_score, streak, full_name').eq('role', 'student'),
+      ])
 
       if (!groupsData || !students) { setLoading(false); return }
 
@@ -47,10 +48,19 @@ export default function GroupsPage() {
           const avgScore = Math.round(totalScore / gs.length)
           const topStreak = Math.max(...gs.map(s => s.streak ?? 0))
           const topStudent = [...gs].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))[0]?.full_name ?? '—'
-          return { id: group.id, name: group.name, description: group.description, totalScore, avgScore, studentCount: gs.length, topStreak, topStudent }
+          return {
+            id: group.id,
+            name: group.name,
+            description: group.description ?? '',
+            totalScore,
+            avgScore,
+            studentCount: gs.length,
+            topStreak,
+            topStudent,
+          }
         })
         .filter(Boolean)
-        .sort((a, b) => (b!.avgScore - a!.avgScore)) as GroupStat[]
+        .sort((a, b) => b!.avgScore - a!.avgScore) as GroupStat[]
 
       setGroups(groupStats)
       setLoading(false)
@@ -74,7 +84,7 @@ export default function GroupsPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900 pb-24 md:pb-0">
       <nav className="bg-white border-b border-gray-100 px-4 py-4 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
           <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-gray-600 transition">
@@ -105,7 +115,7 @@ export default function GroupsPage() {
                 <div className="text-center mb-5 md:mb-8">
                   <p className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">Top guruhlar</p>
                   <h2 className="text-lg md:text-2xl font-black">🏆 Eng yaxshi guruhlar</h2>
-                  <p className="text-gray-400 text-xs mt-1">O'rtacha ball bo'yicha</p>
+                  <p className="text-gray-400 text-xs mt-1">O'rtacha ball bo'yicha · Guruhni bosib a'zolarni ko'ring</p>
                 </div>
 
                 <div className="flex items-end justify-center gap-2 md:gap-8">
@@ -116,10 +126,14 @@ export default function GroupsPage() {
                     const isCurrentGroup = group.id === currentGroupId
 
                     return (
-                      <div key={group.id} className="flex flex-col items-center gap-2 flex-1 max-w-[110px] md:max-w-[160px]">
+                      <div
+                        key={group.id}
+                        onClick={() => router.push(`/groups/${group.id}`)}
+                        className="flex flex-col items-center gap-2 flex-1 max-w-[110px] md:max-w-[160px] cursor-pointer group"
+                      >
                         {isFirst && <Crown className="w-5 h-5 md:w-7 md:h-7 text-yellow-500" />}
 
-                        <div className={`w-full rounded-xl p-2 md:p-3 text-center border-2 ${
+                        <div className={`w-full rounded-xl p-2 md:p-3 text-center border-2 transition group-hover:border-violet-400 group-hover:shadow-md ${
                           isCurrentGroup ? 'border-violet-500 bg-violet-50' : 'border-gray-100 bg-white'
                         }`}>
                           <div className={`w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl mx-auto flex items-center justify-center font-black text-base md:text-lg mb-1.5 ${
@@ -169,8 +183,9 @@ export default function GroupsPage() {
                 return (
                   <div
                     key={group.id}
-                    className={`px-4 md:px-6 py-4 border-b border-gray-50 last:border-0 transition ${
-                      isCurrentGroup ? 'bg-violet-50' : 'hover:bg-gray-50'
+                    onClick={() => router.push(`/groups/${group.id}`)}
+                    className={`px-4 md:px-6 py-4 border-b border-gray-50 last:border-0 transition cursor-pointer ${
+                      isCurrentGroup ? 'bg-violet-50 hover:bg-violet-100/70' : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -213,22 +228,25 @@ export default function GroupsPage() {
                           )}
                         </div>
                         <p className="text-xs text-gray-400 mt-0.5 truncate">
-                          <span className="text-gray-500 font-medium">{group.topStudent}</span>
+                          Lider: <span className="text-gray-600 font-medium">{group.topStudent}</span>
                         </p>
                       </div>
 
-                      {/* Avg score */}
-                      <div className="text-right flex-shrink-0">
-                        <div className={`text-lg md:text-2xl font-black ${isCurrentGroup ? 'text-violet-600' : 'text-gray-900'}`}>
-                          {group.avgScore}
+                      {/* Avg score + arrow */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <div className={`text-lg md:text-2xl font-black ${isCurrentGroup ? 'text-violet-600' : 'text-gray-900'}`}>
+                            {group.avgScore}
+                          </div>
+                          <div className="text-xs text-gray-400">ball</div>
+                          <div className="w-14 md:w-20 h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${isCurrentGroup ? 'bg-violet-500' : 'bg-gray-300'}`}
+                              style={{ width: `${Math.min(100, (group.avgScore / (groups[0]?.avgScore || 1)) * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">ball</div>
-                        <div className="w-14 md:w-20 h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${isCurrentGroup ? 'bg-violet-500' : 'bg-gray-300'}`}
-                            style={{ width: `${Math.min(100, (group.avgScore / (groups[0]?.avgScore || 1)) * 100)}%` }}
-                          />
-                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-300" />
                       </div>
                     </div>
                   </div>
@@ -240,13 +258,14 @@ export default function GroupsPage() {
             <div className="mt-4 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 flex items-start gap-3">
               <TrendingUp className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-violet-600 leading-relaxed">
-                <span className="font-bold">Guruh reytingi</span> o'rtacha ball asosida hisoblanadi — adolatli raqobat uchun.
+                <span className="font-bold">Guruh reytingi</span> o'rtacha ball asosida hisoblanadi — adolatli raqobat uchun. Guruh ustiga bosib a'zolarni ko'ring.
               </p>
             </div>
           </>
         )}
       </main>
-        <BottomNav />
+
+      <BottomNav />
     </div>
   )
 }

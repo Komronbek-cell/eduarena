@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Pencil, Trash2, Plus, X, Check, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import BottomNav from '@/components/layout/BottomNav'
@@ -44,11 +45,23 @@ function Avatar({ name, image, size = 'md' }: { name: string; image: string; siz
 export default function TeamPage() {
   const router = useRouter()
   const [team, setTeam] = useState<TeamMember[]>(INITIAL_TEAM)
-  const [isAdmin] = useState(true) // replace with real auth check
+  const [isAdmin, setIsAdmin] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
   const [form, setForm] = useState({ name: '', role: '', image: '', type: 'member' as 'leader' | 'member' })
+
+  // Real admin tekshiruvi
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      setIsAdmin(data?.role === 'admin')
+    }
+    checkAdmin()
+  }, [])
 
   const leaders = team.filter(m => m.type === 'leader').sort((a, b) => a.order - b.order)
   const members = team.filter(m => m.type === 'member').sort((a, b) => a.order - b.order)
@@ -80,6 +93,12 @@ export default function TeamPage() {
     setEditingMember(member)
     setForm({ name: member.name, role: member.role, image: member.image, type: member.type })
     setShowAddModal(true)
+  }
+
+  const closeModal = () => {
+    setShowAddModal(false)
+    setEditingMember(null)
+    setForm({ name: '', role: '', image: '', type: 'member' })
   }
 
   return (
@@ -128,18 +147,16 @@ export default function TeamPage() {
 
         {/* Leaders hero section */}
         <div className="relative rounded-3xl overflow-hidden mb-12 md:mb-16">
-          {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-700 to-indigo-800" />
           <div className="absolute inset-0">
             <div className="absolute top-0 left-1/4 w-72 h-72 bg-violet-400/20 rounded-full blur-3xl" />
             <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-purple-400/20 rounded-full blur-3xl" />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl" />
-            {/* Stars */}
             {[...Array(20)].map((_, i) => (
               <div
                 key={i}
                 className="absolute w-1 h-1 bg-white rounded-full opacity-30"
-                style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%` }}
+                style={{ top: `${(i * 17 + 5) % 100}%`, left: `${(i * 23 + 10) % 100}%` }}
               />
             ))}
           </div>
@@ -148,7 +165,6 @@ export default function TeamPage() {
             <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
               {leaders.map((leader, i) => (
                 <div key={leader.id} className="flex flex-col items-center gap-4 group">
-                  {/* Avatar with glow */}
                   <div className="relative">
                     <div className="absolute inset-0 rounded-full bg-violet-400/40 blur-xl scale-110" />
                     <div className="relative">
@@ -174,7 +190,6 @@ export default function TeamPage() {
                     </div>
                   </div>
 
-                  {/* Info */}
                   <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm text-white/70 text-xs font-semibold px-3 py-1 rounded-full mb-2 border border-white/10">
                       {i === 0 ? '✦ Bosh koordinator' : '◈ Loyihalar koordinatori'}
@@ -231,19 +246,15 @@ export default function TeamPage() {
               )}
 
               <div className="flex flex-col items-center text-center gap-3">
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-violet-100 group-hover:border-violet-300 transition-colors shadow-md">
-                    {member.image ? (
-                      <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center font-black text-violet-600 text-lg">
-                        {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
-                    )}
-                  </div>
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-violet-100 group-hover:border-violet-300 transition-colors shadow-md">
+                  {member.image ? (
+                    <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center font-black text-violet-600 text-lg">
+                      {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                  )}
                 </div>
-
                 <div>
                   <p className="font-black text-sm text-gray-900 leading-tight">{member.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5 font-medium">{member.role}</p>
@@ -271,14 +282,14 @@ export default function TeamPage() {
       {showAddModal && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={e => { if (e.target === e.currentTarget) { setShowAddModal(false); setEditingMember(null) } }}
+          onClick={e => { if (e.target === e.currentTarget) closeModal() }}
         >
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="font-black text-lg">
                 {editingMember ? 'Tahrirlash' : "Yangi a'zo qo'shish"}
               </h3>
-              <button onClick={() => { setShowAddModal(false); setEditingMember(null) }} className="text-gray-400 hover:text-gray-600 transition">
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -324,7 +335,7 @@ export default function TeamPage() {
                           : 'border-gray-100 bg-gray-50 text-gray-500'
                       }`}
                     >
-                      {t === 'leader' ? '👑 Rahbar' : '👤 A\'zo'}
+                      {t === 'leader' ? "👑 Rahbar" : "👤 A'zo"}
                     </button>
                   ))}
                 </div>
@@ -332,7 +343,7 @@ export default function TeamPage() {
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => { setShowAddModal(false); setEditingMember(null) }}
+                  onClick={closeModal}
                   className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-500 font-bold text-sm hover:bg-gray-50 transition"
                 >
                   Bekor
