@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Bell, Pin, Loader2, Crown, Star, Trophy } from 'lucide-react'
 
-
 type GroupField = { name: string } | { name: string }[] | null | undefined
 
 function getGroupName(g: GroupField): string {
@@ -52,20 +51,21 @@ export default function AnnouncementsPage() {
       if (!user) { router.push('/login'); return }
       setCurrentUserId(user.id)
 
-      const [
-        { data: announcementsData },
-        { data: championsData },
-      ] = await Promise.all([
-        supabase.from('announcements').select('*')
-          .order('is_pinned', { ascending: false })
-          .order('created_at', { ascending: false }),
-        supabase.from('weekly_champions')
-          .select('*, profiles(full_name, avatar_url, groups(name))')
-          .order('announced_at', { ascending: false })
-          .limit(10),
-      ])
+      // E'lonlarni olish
+      const { data: announcementsData } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
 
-      // "Hafta qahramoni" e'lonlarini asosiy ro'yxatdan chiqarib tashlaymiz — alohida ko'rsatamiz
+      // weekly_champions jadval bo'lmasa ham xato bermasin
+      const { data: championsData } = await supabase
+        .from('weekly_champions')
+        .select('*, profiles(full_name, avatar_url, groups(name))')
+        .order('announced_at', { ascending: false })
+        .limit(10)
+
+      // "Hafta qahramoni" e'lonlarini asosiy ro'yxatdan chiqaramiz
       const filteredAnnouncements = (announcementsData ?? []).filter(
         (a: Announcement) => !a.title.startsWith('🏆 Hafta qahramoni:')
       )
@@ -114,7 +114,7 @@ export default function AnnouncementsPage() {
               ? 'bg-amber-500 border-amber-400'
               : 'bg-white border-amber-200'
           }`}>
-            {/* Dekorativ fon doiralar */}
+            {/* Dekorativ fon */}
             <div className={`absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-10 ${
               isCurrentUserChampion ? 'bg-white' : 'bg-amber-400'
             }`} />
@@ -166,7 +166,7 @@ export default function AnnouncementsPage() {
                     <p className="text-amber-100 text-sm font-semibold">{champProfile?.full_name}</p>
                   )}
                   <p className={`text-sm mt-0.5 ${isCurrentUserChampion ? 'text-amber-100' : 'text-gray-500'}`}>
-                    {getGroupName(champProfile?.groups) || 'Guruh yo\'q'}
+                    {getGroupName(champProfile?.groups) || "Guruh yo'q"}
                   </p>
                   <div className={`flex items-center gap-1 mt-2 font-black text-lg ${
                     isCurrentUserChampion ? 'text-white' : 'text-amber-600'
@@ -185,7 +185,6 @@ export default function AnnouncementsPage() {
                 </div>
               )}
 
-              {/* Barcha qahramonlarni ko'rish */}
               {allChampions.length > 1 && (
                 <button
                   onClick={() => setShowAllChampions(!showAllChampions)}
@@ -195,12 +194,12 @@ export default function AnnouncementsPage() {
                       : 'text-amber-600 hover:text-amber-700'
                   }`}
                 >
-                  {showAllChampions ? 'Yig\'ish ↑' : `Avvalgi qahramonlar (${allChampions.length - 1}) →`}
+                  {showAllChampions ? "Yig'ish ↑" : `Avvalgi qahramonlar (${allChampions.length - 1}) →`}
                 </button>
               )}
             </div>
 
-            {/* Avvalgi qahramonlar ro'yxati */}
+            {/* Avvalgi qahramonlar */}
             {showAllChampions && allChampions.length > 1 && (
               <div className="mt-4 space-y-2 relative">
                 <div className="h-px bg-amber-300/30 mb-3" />
@@ -232,7 +231,7 @@ export default function AnnouncementsPage() {
           </div>
         )}
 
-        {/* ===== ANNOUNCEMENTS ===== */}
+        {/* ===== E'LONLAR ===== */}
         {announcements.length === 0 && !latestChampion ? (
           <div className="bg-white border border-gray-100 rounded-2xl text-center py-20 shadow-sm">
             <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -248,7 +247,10 @@ export default function AnnouncementsPage() {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                   a.is_pinned ? 'bg-violet-100' : 'bg-gray-100'
                 }`}>
-                  <Bell className={`w-5 h-5 ${a.is_pinned ? 'text-violet-600' : 'text-gray-400'}`} />
+                  {a.is_pinned
+                    ? <Pin className="w-5 h-5 text-violet-600" />
+                    : <Bell className="w-5 h-5 text-gray-400" />
+                  }
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -259,10 +261,11 @@ export default function AnnouncementsPage() {
                     )}
                     <h3 className="font-black text-gray-900">{a.title}</h3>
                   </div>
-                  <p className="text-gray-500 text-sm leading-relaxed">{a.content}</p>
+                  <p className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">{a.content}</p>
                   <p className="text-xs text-gray-300 mt-3">
                     {new Date(a.created_at).toLocaleDateString('uz-UZ', {
-                      year: 'numeric', month: 'long', day: 'numeric'
+                      year: 'numeric', month: 'long', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
                     })}
                   </p>
                 </div>

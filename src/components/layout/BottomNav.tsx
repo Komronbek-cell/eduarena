@@ -16,18 +16,24 @@ export default function BottomNav() {
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 py-2 flex items-center justify-around md:hidden z-50 safe-area-pb">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 py-2 flex items-center justify-around md:hidden z-50"
+      style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+    >
       {tabs.map(tab => {
-        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/')
+        // /groups aktiv bo'lsa /groups/[id] da ham aktiv ko'rinsin,
+        // lekin /dashboard uchun faqat exact match
+        const isActive = tab.href === '/dashboard'
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(tab.href + '/')
+
         const Icon = tab.icon
         return (
           <button
             key={tab.href}
             onClick={() => router.push(tab.href)}
             className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
-              isActive
-                ? 'text-violet-600'
-                : 'text-gray-400 hover:text-gray-600'
+              isActive ? 'text-violet-600' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <div className={`p-1.5 rounded-xl transition-all ${isActive ? 'bg-violet-100' : ''}`}>
