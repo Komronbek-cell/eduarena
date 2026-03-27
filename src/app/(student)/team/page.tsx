@@ -17,8 +17,8 @@ interface TeamMember {
 }
 
 const INITIAL_TEAM: TeamMember[] = [
-  { id: '1', name: 'Komronbek Safaraliyev', role: 'Bosh koordinator', image: '', type: 'leader', order: 0 },
-  { id: '2', name: 'Bunyodbek Toshmatov', role: 'Intellektual loyihalar koordinatori', image: '', type: 'leader', order: 1 },
+  { id: '1', name: 'Komronbek Saparaliyev', role: 'Intellektual loyihalar koordinatori', image: '', type: 'leader', order: 0 },
+  { id: '2', name: 'Bexruz Ravufov', role: 'Raqamli iqtisodiyot va innovatsiyalar fakultetiti bosh koordinatori', image: '', type: 'leader', order: 1 },
   { id: '3', name: 'Dilshoda Karimova', role: 'SMM Mutaxassisi', image: '', type: 'member', order: 0 },
   { id: '4', name: 'Azizbek Yusupov', role: 'Texnik mutaxassis', image: '', type: 'member', order: 1 },
   { id: '5', name: 'Farida Ismailova', role: 'Kontent menejer', image: '', type: 'member', order: 2 },
