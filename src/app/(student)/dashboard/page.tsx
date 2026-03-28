@@ -394,6 +394,20 @@ export default function DashboardPage() {
   </div>
   <p className="text-gray-400 text-xs md:text-sm">EduArena jamoasi bilan tanishing</p>
 </div>
+{/* Turnir */}
+<div
+  onClick={() => router.push('/tournament')}
+  className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-orange-200 transition"
+>
+  <div className="flex items-center justify-between mb-3 md:mb-4">
+    <h2 className="font-black text-base md:text-lg flex items-center gap-2">
+      <Flame className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+      Turnir
+    </h2>
+    <ChevronRight className="w-4 h-4 text-gray-400" />
+  </div>
+  <p className="text-gray-400 text-xs md:text-sm">Guruhlar o'rtasida musobaqa</p>
+</div>
 
           {/* Yutuqlar */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm">

@@ -39,7 +39,8 @@ export async function proxy(request: NextRequest) {
     path.startsWith('/groups') ||
     path.startsWith('/announcements') ||
     path.startsWith('/quizzes') ||
-    path.startsWith('/team')
+    path.startsWith('/team') ||
+    path.startsWith('/tournament') 
 
   const isAuthPage =
     path.startsWith('/login') ||
@@ -83,6 +84,7 @@ export const config = {
     '/announcements/:path*',
     '/quizzes/:path*',
     '/team/:path*',
+    '/tournament/:path*',
     '/login',
     '/register',
   ],
