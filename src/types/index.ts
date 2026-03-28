@@ -34,7 +34,7 @@ export interface Quiz {
   id: string
   title: string
   description?: string
-  type: 'daily' | 'weekly'
+  type: 'daily' | 'weekly' | 'tournament'
   status: 'draft' | 'active' | 'finished'
   time_limit: number
   score_per_question: number

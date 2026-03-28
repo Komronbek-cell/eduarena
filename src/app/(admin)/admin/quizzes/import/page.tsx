@@ -220,9 +220,12 @@ export default function ImportQuizPage() {
                 <select value={type} onChange={e => setType(e.target.value as any)} className={inputClass}>
                   <option value="daily">Kunlik</option>
                   <option value="weekly">Haftalik</option>
+                  <option value="tournament">Turnir</option>
+
                 </select>
               </div>
               <div>
+
                 <label className="text-sm font-semibold text-gray-700 mb-1.5 block">Vaqt (soniya)</label>
                 <input type="number" value={timeLimit} onChange={e => setTimeLimit(Number(e.target.value))} className={inputClass} />
               </div>

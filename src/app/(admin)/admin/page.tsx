@@ -6,9 +6,11 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trophy, Users, BookOpen, TrendingUp, LogOut,
   Loader2, PlusCircle, BarChart2, Bell, Crown,
-  Shield, Upload, Star
+  Shield, Upload, Star,
+  Swords
 } from 'lucide-react'
 import Image from 'next/image'
+
 
 interface AdminProfile {
   id: string
@@ -126,6 +128,14 @@ export default function AdminPage() {
       bg: 'bg-orange-50 group-hover:bg-orange-100',
       href: '/admin/announcements',
       permission: 'manage_announcements',
+    },
+    {
+     label: 'Turnir',
+     desc: 'Guruhlar musobaqasini boshqarish',
+     icon: <Swords className="w-5 h-5 text-red-600" />,
+     bg: 'bg-red-50 group-hover:bg-red-100',
+     href: '/admin/tournament',
+     permission: 'manage_quizzes',
     },
     {
       label: 'Analitika',

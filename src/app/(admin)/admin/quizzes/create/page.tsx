@@ -140,6 +140,7 @@ export default function CreateQuizPage() {
               <select value={type} onChange={e => setType(e.target.value as 'daily' | 'weekly')} className={inputClass}>
                 <option value="daily">Kunlik</option>
                 <option value="weekly">Haftalik</option>
+                <option value="tournament">Turnir</option>
               </select>
             </div>
             <div>
