@@ -27,44 +27,43 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Himoyalangan sahifalar
-  const isProtected =
-    request.nextUrl.pathname.startsWith('/dashboard') ||
-    request.nextUrl.pathname.startsWith('/admin') ||
-    request.nextUrl.pathname.startsWith('/quiz') ||
-    request.nextUrl.pathname.startsWith('/leaderboard') ||
-    request.nextUrl.pathname.startsWith('/profile') ||
-    request.nextUrl.pathname.startsWith('/history') ||
-    request.nextUrl.pathname.startsWith('/groups') ||
-    request.nextUrl.pathname.startsWith('/announcements') ||
-    request.nextUrl.pathname.startsWith('/quizzes')
+  const path = request.nextUrl.pathname
 
-  // Login sahifasida bloklash
+  const isProtected =
+    path.startsWith('/dashboard') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/quiz') ||
+    path.startsWith('/leaderboard') ||
+    path.startsWith('/profile') ||
+    path.startsWith('/history') ||
+    path.startsWith('/groups') ||
+    path.startsWith('/announcements') ||
+    path.startsWith('/quizzes') ||
+    path.startsWith('/team')
+
   const isAuthPage =
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/register')
+    path.startsWith('/login') ||
+    path.startsWith('/register')
 
   if (!user && isProtected) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (user) {
-    // Bloklangan foydalanuvchini tekshirish
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, is_blocked')
       .eq('id', user.id)
       .single()
 
-    // Bloklangan bo'lsa — chiqarib yuborish
     if (profile?.is_blocked && !isAuthPage) {
       await supabase.auth.signOut()
-      const response = NextResponse.redirect(new URL('/login?blocked=true', request.url))
-      return response
+      return NextResponse.redirect(new URL('/login?blocked=true', request.url))
     }
 
-    // Admin sahifasiga oddiy talaba kira olmasin
-    if (request.nextUrl.pathname.startsWith('/admin') && profile?.role !== 'admin') {
+    const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+
+    if (path.startsWith('/admin') && !isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
@@ -83,6 +82,7 @@ export const config = {
     '/groups/:path*',
     '/announcements/:path*',
     '/quizzes/:path*',
+    '/team/:path*',
     '/login',
     '/register',
   ],

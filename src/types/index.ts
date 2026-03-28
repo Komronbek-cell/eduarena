@@ -1,4 +1,12 @@
-export type UserRole = 'student' | 'admin'
+export type UserRole = 'student' | 'admin' | 'super_admin'
+
+export type Permission =
+  | 'manage_quizzes'
+  | 'manage_students'
+  | 'manage_announcements'
+  | 'manage_scores'
+  | 'manage_team'
+  | 'view_analytics'
 
 export interface Group {
   id: string
@@ -19,6 +27,7 @@ export interface Profile {
   last_active?: string
   created_at: string
   groups?: Group
+permissions?: Permission[]
 }
 
 export interface Quiz {
