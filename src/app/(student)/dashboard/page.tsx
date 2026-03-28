@@ -142,6 +142,9 @@ export default function DashboardPage() {
             <button onClick={() => router.push('/groups')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
               <Users className="w-4 h-4" /> Guruhlar
             </button>
+            <button onClick={() => router.push('/team')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
+              <Users className="w-4 h-4" /> Jamoa
+            </button>
             <button onClick={() => router.push('/history')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
               <History className="w-4 h-4" /> Tarix
             </button>
@@ -356,7 +359,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom grid */}
-        <div className={`grid md:grid-cols-2 gap-3 md:gap-4 transition-all duration-700 delay-300 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid md:grid-cols-3 gap-3 md:gap-4 transition-all duration-700 delay-300 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* E'lonlar */}
           <div
             onClick={() => router.push('/announcements')}
@@ -376,6 +379,21 @@ export default function DashboardPage() {
               {announcementCount > 0 ? `${announcementCount} ta yangi e'lon mavjud` : "Hozircha e'lon yo'q"}
             </p>
           </div>
+
+          {/* Jamoa */}
+<div
+  onClick={() => router.push('/team')}
+  className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
+>
+  <div className="flex items-center justify-between mb-3 md:mb-4">
+    <h2 className="font-black text-base md:text-lg flex items-center gap-2">
+      <Users className="w-4 h-4 md:w-5 md:h-5 text-violet-600" />
+      Jamoa
+    </h2>
+    <ChevronRight className="w-4 h-4 text-gray-400" />
+  </div>
+  <p className="text-gray-400 text-xs md:text-sm">EduArena jamoasi bilan tanishing</p>
+</div>
 
           {/* Yutuqlar */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm">
