@@ -42,6 +42,7 @@ export default function TournamentCreate({ groups, quizzes, onCancel, onCreate }
   const [bonusSemifinal, setBonusSemifinal] = useState(50)
   const [creating, setCreating] = useState(false)
   const [search, setSearch] = useState('')
+  const isPowerOfTwo = (n: number) => n > 0 && (n & (n - 1)) === 0
 
   const toggleGroup = (id: string) => {
     setSelectedGroups(prev =>
@@ -53,11 +54,15 @@ export default function TournamentCreate({ groups, quizzes, onCancel, onCreate }
   const clearAll = () => setSelectedGroups([])
 
   const handleCreate = async () => {
-    if (!title || selectedGroups.length < 2) return
-    if (selectedGroups.length % 2 !== 0) {
-      alert("Guruhlar soni juft bo'lishi kerak!")
-      return
-    }
+  if (!title || selectedGroups.length < 2) return
+  if (selectedGroups.length % 2 !== 0) {
+    alert("Guruhlar soni juft bo'lishi kerak!")
+    return
+  }
+  if (!isPowerOfTwo(selectedGroups.length)) {
+    alert("Guruhlar soni 2 ning darajasi bo'lishi kerak: 2, 4, 8, 16, 32...")
+    return
+  }
     setCreating(true)
     await onCreate({ title, selectedGroups, selectedQuiz, roundDays, bonusChampion, bonusFinalist, bonusSemifinal })
     setCreating(false)
@@ -73,8 +78,8 @@ export default function TournamentCreate({ groups, quizzes, onCancel, onCreate }
     : 0
 
   const isValid = title.trim() &&
-    selectedGroups.length >= 2 &&
-    selectedGroups.length % 2 === 0
+  selectedGroups.length >= 2 &&
+  isPowerOfTwo(selectedGroups.length)
 
   return (
     <div className="space-y-5">
@@ -170,11 +175,16 @@ export default function TournamentCreate({ groups, quizzes, onCancel, onCreate }
 
         {/* Status */}
         <div className="flex items-center gap-3 mb-4 flex-wrap">
-          {selectedGroups.length % 2 !== 0 && selectedGroups.length > 0 && (
-            <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl font-bold">
-              <AlertCircle className="w-3.5 h-3.5" /> Juft son tanlang
-            </span>
-          )}
+          {selectedGroups.length > 0 && selectedGroups.length % 2 !== 0 && (
+          <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl font-bold">
+    <AlertCircle className="w-3.5 h-3.5" /> Juft son tanlang
+  </span>
+)}
+{selectedGroups.length > 0 && selectedGroups.length % 2 === 0 && !isPowerOfTwo(selectedGroups.length) && (
+  <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl font-bold">
+    <AlertCircle className="w-3.5 h-3.5" /> 2, 4, 8, 16, 32 ta tanlang
+  </span>
+)}
           {selectedGroups.length >= 2 && selectedGroups.length % 2 === 0 && (
             <span className="flex items-center gap-2 text-xs text-violet-700 bg-violet-50 border border-violet-200 px-3 py-1.5 rounded-xl font-bold">
               <CheckCircle className="w-3.5 h-3.5 text-green-500" />

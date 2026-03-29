@@ -33,6 +33,7 @@ interface Tournament {
   bonus_champion: number
   bonus_finalist: number
   bonus_semifinal: number
+  round_days: number
   created_at: string
 }
 
@@ -67,7 +68,6 @@ export default function AdminTournamentPage() {
   const [deletingTournament, setDeletingTournament] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [collapsedRounds, setCollapsedRounds] = useState<number[]>([])
-  const [roundDays, setRoundDays] = useState(2)
   const [announcing, setAnnouncing] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -110,8 +110,25 @@ export default function AdminTournamentPage() {
   }, [])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  fetchData()
+
+  const supabase = createClient()
+  const channel = supabase
+    .channel('admin-tournament-realtime')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'tournament_matches',
+    }, () => { fetchData() })
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'tournaments',
+    }, () => { fetchData() })
+    .subscribe()
+
+  return () => { supabase.removeChannel(channel) }
+}, [fetchData])
 
   const shuffleArray = <T,>(arr: T[]): T[] => {
     const a = [...arr]
@@ -132,7 +149,6 @@ export default function AdminTournamentPage() {
     bonusSemifinal: number
   }) => {
     const supabase = createClient()
-    setRoundDays(data.roundDays)
 
     const { data: tour } = await supabase
       .from('tournaments')
@@ -140,6 +156,7 @@ export default function AdminTournamentPage() {
         title: data.title,
         status: 'active',
         current_round: 1,
+        round_days: data.roundDays,
         bonus_champion: data.bonusChampion,
         bonus_finalist: data.bonusFinalist,
         bonus_semifinal: data.bonusSemifinal,
@@ -234,7 +251,7 @@ export default function AdminTournamentPage() {
         // Keyingi round
         const nextRound = tournament.current_round + 1
         const endsAt = new Date()
-        endsAt.setDate(endsAt.getDate() + roundDays)
+        endsAt.setDate(endsAt.getDate() + tournament.round_days)
 
         const shuffledWinners = shuffleArray(winners)
         const nextMatches = []
@@ -257,7 +274,7 @@ export default function AdminTournamentPage() {
         // Oddiy keyingi round
         const nextRound = tournament.current_round + 1
         const endsAt = new Date()
-        endsAt.setDate(endsAt.getDate() + roundDays)
+        endsAt.setDate(endsAt.getDate() + tournament.round_days)
 
         const shuffledWinners = shuffleArray(winners)
         const nextMatches = []

@@ -17,6 +17,7 @@ interface Question {
 interface Quiz {
   id: string
   title: string
+  type: string
   time_limit: number
   score_per_question: number
   deadline: string | null
@@ -72,7 +73,10 @@ export default function QuizPage() {
       time_spent: timeUsed,
     })
 
-    await supabase.rpc('increment_score', { user_id: userId, amount: score })
+    // Tournament quizida asosiy balansga qo'shilmaydi
+   if (quiz?.type !== 'tournament') {
+   await supabase.rpc('increment_score', { user_id: userId, amount: score })
+}
     await supabase.rpc('update_streak', { user_id: userId })
     await supabase.rpc('check_and_award_achievements', { p_user_id: userId })
 
@@ -94,10 +98,16 @@ export default function QuizPage() {
 
       if (attempt) { router.push('/dashboard'); return }
 
-      const [{ data: quizData }, { data: questionsData }] = await Promise.all([
-        supabase.from('quizzes').select('*').eq('id', quizId).single(),
-        supabase.from('questions').select('*').eq('quiz_id', quizId).order('order_num'),
-      ])
+    const [{ data: quizData }, { data: questionsData }] = await Promise.all([
+      supabase.from('quizzes').select('*').eq('id', quizId).single(),
+      supabase.from('questions').select('*').eq('quiz_id', quizId).order('order_num'),
+])
+
+// Tournament quizida tasodifiy 15 ta savol
+const isTournamentQuiz = quizData?.type === 'tournament'
+const finalQuestions = isTournamentQuiz
+  ? [...(questionsData ?? [])].sort(() => Math.random() - 0.5).slice(0, 15)
+  : (questionsData ?? [])
 
       if (!quizData || quizData.status !== 'active') { router.push('/dashboard'); return }
 
@@ -108,7 +118,7 @@ export default function QuizPage() {
       }
 
       setQuiz(quizData)
-      setQuestions(questionsData ?? [])
+      setQuestions(finalQuestions)
       setTimeLeft(quizData.time_limit)
       setLoading(false)
     }

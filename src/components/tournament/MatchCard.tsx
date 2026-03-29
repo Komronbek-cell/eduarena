@@ -21,9 +21,10 @@ interface MatchCardProps {
   myGroupId: string | null
   isCurrent: boolean
   size?: 'sm' | 'md' | 'lg'
+onGroupClick?: (groupId: string, groupName: string) => void
 }
 
-export default function MatchCard({ match, myGroupId, isCurrent, size = 'md' }: MatchCardProps) {
+export default function MatchCard({ match, myGroupId, isCurrent, size = 'md', onGroupClick }: MatchCardProps) {
   const g1 = match.group1?.name ?? '—'
   const g2 = match.group2?.name ?? '—'
   const g1desc = match.group1?.description ?? ''
@@ -99,11 +100,14 @@ export default function MatchCard({ match, myGroupId, isCurrent, size = 'md' }: 
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={`font-black truncate ${nameSize} ${
+          <p
+            onClick={() => onGroupClick?.(match.group1_id, g1)}
+            className={`font-black truncate ${nameSize} cursor-pointer hover:underline ${
             iAmG1 ? 'text-violet-300' :
             isFinished && g1wins ? 'text-yellow-300' :
-            'text-white/80'
-          }`}>{g1}</p>
+          'text-white/80'
+          }`}
+         >{g1}</p>
           {g1desc && <p className="text-xs text-white/30 truncate hidden md:block">{g1desc}</p>}
           {match.group1_participants !== undefined && match.group1_participants > 0 && (
             <p className="text-xs text-white/30">{match.group1_participants} ishtirok</p>
@@ -150,11 +154,14 @@ export default function MatchCard({ match, myGroupId, isCurrent, size = 'md' }: 
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className={`font-black truncate ${nameSize} ${
-            iAmG2 ? 'text-violet-300' :
-            isFinished && !g1wins ? 'text-yellow-300' :
-            'text-white/80'
-          }`}>{g2}</p>
+          <p
+         onClick={() => onGroupClick?.(match.group2_id, g2)}
+         className={`font-black truncate ${nameSize} cursor-pointer hover:underline ${
+         iAmG2 ? 'text-violet-300' :
+         isFinished && !g1wins ? 'text-yellow-300' :
+        'text-white/80'
+      }`}
+   >{g2}</p>
           {g2desc && <p className="text-xs text-white/30 truncate hidden md:block">{g2desc}</p>}
           {match.group2_participants !== undefined && match.group2_participants > 0 && (
             <p className="text-xs text-white/30">{match.group2_participants} ishtirok</p>
