@@ -47,6 +47,7 @@ export default function TournamentPage() {
   const [loading, setLoading] = useState(true)
   const [animated, setAnimated] = useState(false)
   const [view, setView] = useState<'bracket' | 'my'>('bracket')
+  const [currentRoundQuizId, setCurrentRoundQuizId] = useState<string | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<{
     id: string
     name: string
@@ -76,65 +77,72 @@ export default function TournamentPage() {
         .eq('tournament_id', tourData.id)
         .order('round').order('created_at')
       setMatches((matchesData as any) ?? [])
+
+      // Joriy tur quizini olish
+      const { data: roundQuiz } = await supabase
+        .from('tournament_round_quizzes')
+        .select('quiz_id')
+        .eq('tournament_id', tourData.id)
+        .eq('round', tourData.current_round)
+        .maybeSingle()
+
+      setCurrentRoundQuizId(roundQuiz?.quiz_id ?? null)
     }
 
     setLoading(false)
     setTimeout(() => setAnimated(true), 100)
   }, [router])
 
-   const handleGroupClick = async (groupId: string, groupName: string) => {
-  setLoadingGroup(true)
-  setSelectedGroup({ id: groupId, name: groupName, members: [] })
-
-  const supabase = createClient()
-
-  // Guruh a'zolari
-  const { data: members } = await supabase
-    .from('profiles')
-    .select('id, full_name, total_score, avatar_url')
-    .eq('group_id', groupId)
-    .eq('role', 'student')
-    .order('total_score', { ascending: false })
-
-  if (!members) {
+  const handleGroupClick = async (groupId: string, groupName: string) => {
+    setLoadingGroup(true)
     setSelectedGroup({ id: groupId, name: groupName, members: [] })
-    setLoadingGroup(false)
-    return
-  }
 
-  // Turnir quizlaridan olingan ballar
-  const tournamentQuizIds = matches
-    .filter(m => m.quiz_id)
-    .map(m => m.quiz_id as string)
+    const supabase = createClient()
 
-  const memberIds = members.map(m => m.id)
+    const { data: members } = await supabase
+      .from('profiles')
+      .select('id, full_name, total_score, avatar_url')
+      .eq('group_id', groupId)
+      .eq('role', 'student')
+      .order('total_score', { ascending: false })
 
-  let attemptScores: Record<string, number> = {}
+    if (!members) {
+      setSelectedGroup({ id: groupId, name: groupName, members: [] })
+      setLoadingGroup(false)
+      return
+    }
 
-  if (tournamentQuizIds.length > 0) {
-    const { data: attempts } = await supabase
-      .from('quiz_attempts')
-      .select('user_id, score')
-      .in('user_id', memberIds)
-      .in('quiz_id', tournamentQuizIds)
+    const tournamentQuizIds = matches
+      .filter(m => m.quiz_id)
+      .map(m => m.quiz_id as string)
 
-    attempts?.forEach(a => {
-      attemptScores[a.user_id] = (attemptScores[a.user_id] ?? 0) + a.score
+    const memberIds = members.map(m => m.id)
+    let attemptScores: Record<string, number> = {}
+
+    if (tournamentQuizIds.length > 0) {
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select('user_id, score')
+        .in('user_id', memberIds)
+        .in('quiz_id', tournamentQuizIds)
+
+      attempts?.forEach(a => {
+        attemptScores[a.user_id] = (attemptScores[a.user_id] ?? 0) + a.score
+      })
+    }
+
+    setSelectedGroup({
+      id: groupId,
+      name: groupName,
+      members: members.map(m => ({
+        id: m.id,
+        full_name: m.full_name,
+        score: attemptScores[m.id] ?? 0,
+        avatar_url: m.avatar_url,
+      })),
     })
+    setLoadingGroup(false)
   }
-
-  setSelectedGroup({
-    id: groupId,
-    name: groupName,
-    members: members.map(m => ({
-      id: m.id,
-      full_name: m.full_name,
-      score: attemptScores[m.id] ?? 0,
-      avatar_url: m.avatar_url,
-    })),
-  })
-  setLoadingGroup(false)
-}
 
   useEffect(() => {
     fetchData()
@@ -362,9 +370,9 @@ export default function TournamentPage() {
                       })} gacha
                     </div>
                   )}
-                  {myCurrentMatch.quiz_id && (
+                  {currentRoundQuizId && (
                     <button
-                      onClick={() => router.push(`/quiz/${myCurrentMatch.quiz_id}`)}
+                      onClick={() => router.push(`/quiz/${currentRoundQuizId}`)}
                       className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-black py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-violet-500/30"
                     >
                       <Zap className="w-4 h-4" />
@@ -543,7 +551,7 @@ export default function TournamentPage() {
 
             <div className="px-5 py-4 border-t border-white/10">
               <p className="text-center text-xs text-white/30">
-                {selectedGroup.members.length} ta a'zo · Ball bo'yicha tartiblangan
+                {selectedGroup.members.length} ta a'zo · Turnir bali bo'yicha tartiblangan
               </p>
             </div>
           </div>
