@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/user/eduarena -name *result* -type f)",
+      "Bash(xargs grep:*)",
+      "Bash(wait bn7ltyky7:*)",
+      "Bash(grep -n \"maybeSingle\" /c/Users/user/eduarena/src/app/\\\\\\(student\\\\\\)/quiz/[id]/page.tsx)",
+      "Bash(ls /c/Users/user/eduarena/*.ts)",
+      "Bash(ls /c/Users/user/eduarena/*.tsx)",
+      "Bash(ls /c/Users/user/eduarena/src/*.ts)",
+      "Bash(find /c/Users/user/eduarena -type f \\\\\\(-name *.sql -o -name schema* \\\\\\))"
+    ]
+  }
+}

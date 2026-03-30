@@ -82,11 +82,12 @@ export default function GroupDetailPage() {
           .eq('group_id', groupId)
           .eq('role', 'student')
           .order('total_score', { ascending: false }),
-        supabase.from('quizzes').select('id').eq('status', 'active'),
+        supabase.from('quizzes').select('id').neq('status', 'draft'),
       ])
 
+      const totalQuizCount = allQuizzes?.length ?? 0
       setGroup(groupData)
-      setTotalQuizzes(allQuizzes?.length ?? 0)
+      setTotalQuizzes(totalQuizCount)
 
       const memberIds = (membersData ?? []).map(m => m.id)
 
@@ -146,7 +147,7 @@ export default function GroupDetailPage() {
 
       const enriched = (membersData ?? []).map(m => {
         const quizCount = quizCountMap[m.id] ?? 0
-        const activityRate = totalQuizzes > 0 ? Math.round((quizCount / Math.max(totalQuizzes, 1)) * 100) : 0
+        const activityRate = totalQuizCount > 0 ? Math.round((quizCount / totalQuizCount) * 100) : 0
 
         // Reyting formula: ball 40% + faollik 35% + turnir 25%
         const scoreRating = (m.total_score / maxScore) * 40
@@ -200,10 +201,12 @@ export default function GroupDetailPage() {
   const tourLosses = tournamentMatches.filter(m => m.status === 'finished' && m.winner_group_id !== groupId).length
   const medals = ['🥇', '🥈', '🥉']
 
-  // Guruhning umumiy reytingi
-  const groupOverallRating = members.length > 0
-    ? Math.round(members.reduce((sum, m) => sum + (m.groupRating ?? 0), 0) / members.length)
-    : 0
+  // Guruhning umumiy reytingi: o'rt.ball 40% + faollik 30% + a'zolar soni 15% + turnir 15%
+  const scoreComponent = Math.min((avgScore / 300) * 40, 40)
+  const activityComponent = (avgActivity / 100) * 30
+  const memberComponent = Math.min((members.length / 30) * 15, 15)
+  const tourComponent = (tourWins + tourLosses) > 0 ? (tourWins / (tourWins + tourLosses)) * 15 : 0
+  const groupOverallRating = Math.round(scoreComponent + activityComponent + memberComponent + tourComponent)
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -421,9 +424,10 @@ export default function GroupDetailPage() {
               </h3>
               <div className="space-y-3">
                 {[
-                  { label: "O'rtacha ball", value: `${avgScore}`, weight: '40%', color: 'bg-violet-500', fill: Math.min((avgScore / 500) * 100, 100) },
-                  { label: 'Faollik foizi', value: `${avgActivity}%`, weight: '35%', color: 'bg-green-500', fill: avgActivity },
-                  { label: 'Turnir natijalari', value: `${tourWins}W / ${tourLosses}L`, weight: '25%', color: 'bg-orange-500', fill: (tourWins + tourLosses) > 0 ? (tourWins / (tourWins + tourLosses)) * 100 : 0 },
+                  { label: "O'rtacha ball", value: `${avgScore}`, weight: '40%', color: 'bg-violet-500', fill: Math.min((avgScore / 300) * 100, 100) },
+                  { label: 'Faollik foizi', value: `${avgActivity}%`, weight: '30%', color: 'bg-green-500', fill: avgActivity },
+                  { label: "A'zolar soni", value: `${members.length} talaba`, weight: '15%', color: 'bg-blue-500', fill: Math.min((members.length / 30) * 100, 100) },
+                  { label: 'Turnir natijalari', value: `${tourWins}W / ${tourLosses}L`, weight: '15%', color: 'bg-orange-500', fill: (tourWins + tourLosses) > 0 ? (tourWins / (tourWins + tourLosses)) * 100 : 0 },
                 ].map((item, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between mb-1">
