@@ -33,6 +33,7 @@ interface Tournament {
   bonus_champion: number
   bonus_finalist: number
   bonus_semifinal: number
+  round_days: number
   created_at: string
 }
 
@@ -58,7 +59,6 @@ interface TournamentMatch {
 export default function AdminTournamentPage() {
   const router = useRouter()
   const [groups, setGroups] = useState<Group[]>([])
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [allQuizzes, setAllQuizzes] = useState<Quiz[]>([])
   const [tournament, setTournament] = useState<Tournament | null>(null)
   const [matches, setMatches] = useState<TournamentMatch[]>([])
@@ -67,7 +67,6 @@ export default function AdminTournamentPage() {
   const [deletingTournament, setDeletingTournament] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [collapsedRounds, setCollapsedRounds] = useState<number[]>([])
-  const [roundDays, setRoundDays] = useState(2)
   const [announcing, setAnnouncing] = useState(false)
 
   const fetchData = useCallback(async () => {
@@ -75,13 +74,11 @@ export default function AdminTournamentPage() {
 
     const [
       { data: groupsData },
-      { data: quizzesActive },
       { data: quizzesAll },
       { data: tourData },
       { data: students },
     ] = await Promise.all([
       supabase.from('groups').select('*').order('name'),
-      supabase.from('quizzes').select('id, title, type').eq('status', 'active'),
       supabase.from('quizzes').select('id, title, type').eq('type', 'tournament').order('created_at', { ascending: false }),
       supabase.from('tournaments').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('profiles').select('group_id').eq('role', 'student'),
@@ -93,7 +90,6 @@ export default function AdminTournamentPage() {
     })
 
     setGroups((groupsData ?? []).map(g => ({ ...g, studentCount: countMap[g.id] ?? 0 })))
-    setQuizzes(quizzesActive ?? [])
     setAllQuizzes(quizzesAll ?? [])
 
     if (tourData) {
@@ -104,6 +100,9 @@ export default function AdminTournamentPage() {
         .eq('tournament_id', tourData.id)
         .order('round').order('created_at')
       setMatches((matchesData as any) ?? [])
+    } else {
+      setTournament(null)
+      setMatches([])
     }
 
     setLoading(false)
@@ -111,6 +110,23 @@ export default function AdminTournamentPage() {
 
   useEffect(() => {
     fetchData()
+
+    const supabase = createClient()
+    const channel = supabase
+      .channel('admin-tournament-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tournament_matches',
+      }, () => { fetchData() })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tournaments',
+      }, () => { fetchData() })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [fetchData])
 
   const shuffleArray = <T,>(arr: T[]): T[] => {
@@ -125,14 +141,13 @@ export default function AdminTournamentPage() {
   const handleCreate = async (data: {
     title: string
     selectedGroups: string[]
-    selectedQuiz: string
+    roundQuizzes: Record<number, string>
     roundDays: number
     bonusChampion: number
     bonusFinalist: number
     bonusSemifinal: number
   }) => {
     const supabase = createClient()
-    setRoundDays(data.roundDays)
 
     const { data: tour } = await supabase
       .from('tournaments')
@@ -140,6 +155,7 @@ export default function AdminTournamentPage() {
         title: data.title,
         status: 'active',
         current_round: 1,
+        round_days: data.roundDays,
         bonus_champion: data.bonusChampion,
         bonus_finalist: data.bonusFinalist,
         bonus_semifinal: data.bonusSemifinal,
@@ -148,13 +164,30 @@ export default function AdminTournamentPage() {
 
     if (!tour) return
 
+    // Guruhlarni saqlash
     await supabase.from('tournament_groups').insert(
       data.selectedGroups.map(gid => ({ tournament_id: tour.id, group_id: gid }))
     )
 
+    // Har tur uchun quizlarni saqlash
+    const roundQuizInserts = Object.entries(data.roundQuizzes)
+      .filter(([_, quizId]) => quizId)
+      .map(([round, quizId]) => ({
+        tournament_id: tour.id,
+        round: Number(round),
+        quiz_id: quizId,
+      }))
+
+    if (roundQuizInserts.length > 0) {
+      await supabase.from('tournament_round_quizzes').insert(roundQuizInserts)
+    }
+
+    // 1-tur matchlarini yaratish
     const shuffled = shuffleArray(data.selectedGroups)
     const endsAt = new Date()
     endsAt.setDate(endsAt.getDate() + data.roundDays)
+
+    const firstRoundQuizId = data.roundQuizzes[1] || null
 
     const matchInserts = []
     for (let i = 0; i < shuffled.length; i += 2) {
@@ -163,7 +196,7 @@ export default function AdminTournamentPage() {
         round: 1,
         group1_id: shuffled[i],
         group2_id: shuffled[i + 1],
-        quiz_id: data.selectedQuiz || null,
+        quiz_id: firstRoundQuizId,
         status: 'active',
         ends_at: endsAt.toISOString(),
         group1_score: 0,
@@ -198,18 +231,23 @@ export default function AdminTournamentPage() {
         m.winner_group_id ?? (m.group1_score >= m.group2_score ? m.group1_id : m.group2_id)
       )
 
-      if (winners.length === 1) {
-        // 🏆 CHEMPION!
+      const totalGroups = matches.filter(m => m.round === 1).length * 2
+      const totalRounds = Math.ceil(Math.log2(totalGroups))
+      const isFinalRound = tournament.current_round === totalRounds
+      const isSemiFinalRound = tournament.current_round === totalRounds - 1
+
+      if (isFinalRound) {
+        // 🏆 CHEMPION
         await supabase.from('tournaments').update({ status: 'finished' }).eq('id', tournament.id)
 
+        const champGroupId = winners[0]
         const { data: champStudents } = await supabase
-          .from('profiles').select('id').eq('group_id', winners[0])
+          .from('profiles').select('id').eq('group_id', champGroupId)
         for (const s of champStudents ?? []) {
           await supabase.rpc('increment_score', { user_id: s.id, amount: tournament.bonus_champion })
         }
 
-        // Finalist ballari
-        const finalistGroupId = updatedMatches[0].group1_id === winners[0]
+        const finalistGroupId = updatedMatches[0].group1_id === champGroupId
           ? updatedMatches[0].group2_id
           : updatedMatches[0].group1_id
         const { data: finalistStudents } = await supabase
@@ -218,23 +256,35 @@ export default function AdminTournamentPage() {
           await supabase.rpc('increment_score', { user_id: s.id, amount: tournament.bonus_finalist })
         }
 
-      } else if (winners.length === 2) {
-        // Yarim final ballari
-        const loserIds = updatedMatches.map(m =>
-          m.group1_id === m.winner_group_id ? m.group2_id : m.group1_id
-        )
-        for (const loserId of loserIds) {
-          const { data: semiStudents } = await supabase
-            .from('profiles').select('id').eq('group_id', loserId)
-          for (const s of semiStudents ?? []) {
-            await supabase.rpc('increment_score', { user_id: s.id, amount: tournament.bonus_semifinal })
+      } else {
+        // Yarim final bonusi
+        if (isSemiFinalRound) {
+          const loserIds = updatedMatches.map(m =>
+            m.group1_id === m.winner_group_id ? m.group2_id : m.group1_id
+          )
+          for (const loserId of loserIds) {
+            const { data: semiStudents } = await supabase
+              .from('profiles').select('id').eq('group_id', loserId)
+            for (const s of semiStudents ?? []) {
+              await supabase.rpc('increment_score', { user_id: s.id, amount: tournament.bonus_semifinal })
+            }
           }
         }
 
         // Keyingi round
         const nextRound = tournament.current_round + 1
         const endsAt = new Date()
-        endsAt.setDate(endsAt.getDate() + roundDays)
+        endsAt.setDate(endsAt.getDate() + tournament.round_days)
+
+        // Keyingi tur quizini tournament_round_quizzes dan olish
+        const { data: nextRoundQuiz } = await supabase
+          .from('tournament_round_quizzes')
+          .select('quiz_id')
+          .eq('tournament_id', tournament.id)
+          .eq('round', nextRound)
+          .maybeSingle()
+
+        const nextQuizId = nextRoundQuiz?.quiz_id ?? null
 
         const shuffledWinners = shuffleArray(winners)
         const nextMatches = []
@@ -244,30 +294,7 @@ export default function AdminTournamentPage() {
             round: nextRound,
             group1_id: shuffledWinners[i],
             group2_id: shuffledWinners[i + 1],
-            quiz_id: quizId,
-            status: 'active',
-            ends_at: endsAt.toISOString(),
-            group1_score: 0,
-            group2_score: 0,
-          })
-        }
-        await supabase.from('tournament_matches').insert(nextMatches)
-        await supabase.from('tournaments').update({ current_round: nextRound }).eq('id', tournament.id)
-      } else {
-        // Oddiy keyingi round
-        const nextRound = tournament.current_round + 1
-        const endsAt = new Date()
-        endsAt.setDate(endsAt.getDate() + roundDays)
-
-        const shuffledWinners = shuffleArray(winners)
-        const nextMatches = []
-        for (let i = 0; i < shuffledWinners.length; i += 2) {
-          nextMatches.push({
-            tournament_id: tournament.id,
-            round: nextRound,
-            group1_id: shuffledWinners[i],
-            group2_id: shuffledWinners[i + 1],
-            quiz_id: quizId,
+            quiz_id: nextQuizId,
             status: 'active',
             ends_at: endsAt.toISOString(),
             group1_score: 0,
@@ -294,6 +321,7 @@ export default function AdminTournamentPage() {
     if (!tournament) return
     setDeletingTournament(true)
     const supabase = createClient()
+    await supabase.from('tournament_round_quizzes').delete().eq('tournament_id', tournament.id)
     await supabase.from('tournament_matches').delete().eq('tournament_id', tournament.id)
     await supabase.from('tournament_groups').delete().eq('tournament_id', tournament.id)
     await supabase.from('tournaments').delete().eq('id', tournament.id)
@@ -303,7 +331,6 @@ export default function AdminTournamentPage() {
     setDeletingTournament(false)
   }
 
-  // 🎉 Syurpriz: Turnir natijasini e'lon qilish
   const handleAnnounce = async () => {
     if (!tournament) return
     setAnnouncing(true)
@@ -401,7 +428,6 @@ export default function AdminTournamentPage() {
 
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8">
 
-        {/* Create form */}
         {step === 'create' && (
           <TournamentCreate
             groups={groups}
@@ -411,11 +437,9 @@ export default function AdminTournamentPage() {
           />
         )}
 
-        {/* Active tournament */}
         {step === 'list' && tournament && (
           <div className="space-y-5">
 
-            {/* Tournament header */}
             <div className={`rounded-3xl p-6 md:p-8 relative overflow-hidden ${
               isFinished
                 ? 'bg-gradient-to-br from-yellow-500 to-amber-600'
@@ -462,7 +486,6 @@ export default function AdminTournamentPage() {
                   </div>
                 </div>
 
-                {/* Action buttons */}
                 <div className="flex items-center gap-3 mt-5 flex-wrap">
                   {isFinished && (
                     <button
@@ -487,7 +510,6 @@ export default function AdminTournamentPage() {
               </div>
             </div>
 
-            {/* Delete confirm */}
             {showDeleteConfirm && (
               <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5">
                 <div className="flex items-start gap-3 mb-4">
@@ -516,7 +538,6 @@ export default function AdminTournamentPage() {
               </div>
             )}
 
-            {/* Rounds */}
             {allRounds.map(round => {
               const roundMatches = matches.filter(m => m.round === round)
               const isCurrent = round === tournament.current_round && !isFinished
@@ -526,7 +547,6 @@ export default function AdminTournamentPage() {
 
               return (
                 <div key={round} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-                  {/* Round header */}
                   <div
                     className={`flex items-center justify-between px-5 py-4 cursor-pointer ${
                       isCurrent ? 'bg-violet-50' : 'bg-white'
@@ -556,7 +576,6 @@ export default function AdminTournamentPage() {
                     </div>
                   </div>
 
-                  {/* Matches */}
                   {!isCollapsed && (
                     <div className="p-4 md:p-5 grid md:grid-cols-2 gap-4 border-t border-gray-50">
                       {roundMatches.map(match => (
@@ -577,7 +596,6 @@ export default function AdminTournamentPage() {
           </div>
         )}
 
-        {/* No tournament */}
         {step === 'list' && !tournament && (
           <div className="text-center py-24">
             <div className="w-24 h-24 bg-gradient-to-br from-violet-100 to-purple-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">

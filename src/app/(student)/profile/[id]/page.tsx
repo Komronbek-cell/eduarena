@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Trophy, Flame, Star, Target, Users, Loader2, Crown, Medal, Calendar, CheckCircle, Clock } from 'lucide-react'
+import { ArrowLeft, Trophy, Flame, Star, Target, Users, Loader2, Crown, Medal, Calendar, CheckCircle, Clock, Settings, Lock, History } from 'lucide-react'
 import Image from 'next/image'
 import BottomNav from '@/components/layout/BottomNav'
 
@@ -120,6 +120,14 @@ export default function StudentProfilePage() {
           {isOwnProfile && (
             <span className="text-xs bg-violet-100 text-violet-600 px-2 py-0.5 rounded-full font-bold flex-shrink-0">Siz</span>
           )}
+          {isOwnProfile && (
+            <button
+              onClick={() => router.push('/profile')}
+              className="ml-auto flex items-center gap-1.5 text-xs text-gray-500 hover:text-violet-600 bg-gray-50 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition font-bold"
+            >
+              <Settings className="w-3.5 h-3.5" /> Tahrirlash
+            </button>
+          )}
         </div>
       </nav>
 
@@ -199,35 +207,46 @@ export default function StudentProfilePage() {
               {earnedTitles.length}/6
             </span>
           </div>
-          <div className="grid grid-cols-6 gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
             {ALL_BADGES.map((badge, i) => {
               const earned = earnedTitles.includes(badge.title)
               return (
                 <div
                   key={i}
-                  title={badge.title}
-                  className={`flex flex-col items-center p-2 rounded-xl border transition ${
-                    earned ? 'border-violet-200 bg-violet-50 scale-110' : 'border-gray-100 bg-gray-50 opacity-40'
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition ${
+                    earned ? 'border-violet-200 bg-violet-50' : 'border-gray-100 bg-gray-50'
                   }`}
                 >
-                  <span className="text-xl">{badge.icon}</span>
+                  <span className="text-2xl">{earned ? badge.icon : <Lock className="w-5 h-5 text-gray-300" />}</span>
+                  <span className={`text-xs font-semibold text-center leading-tight ${earned ? 'text-violet-700' : 'text-gray-400'}`}>
+                    {badge.title}
+                  </span>
                 </div>
               )
             })}
           </div>
-          {earnedTitles.length > 0 && (
-            <p className="text-xs text-violet-600 font-semibold mt-3">🎉 {earnedTitles.length} ta yutuq!</p>
-          )}
-          {earnedTitles.length === 0 && (
+          {earnedTitles.length === 0 ? (
             <p className="text-xs text-gray-400 mt-3">Hali yutuq qo'lga kiritilmagan</p>
+          ) : earnedTitles.length < ALL_BADGES.length ? (
+            <p className="text-xs text-violet-600 font-semibold mt-3">🎉 {earnedTitles.length} ta yutuq · Yana {ALL_BADGES.length - earnedTitles.length} ta qoldi!</p>
+          ) : (
+            <p className="text-xs text-violet-600 font-semibold mt-3">🏆 Barcha yutuqlar qo'lga kiritildi!</p>
           )}
         </div>
 
         {/* So'nggi quizlar */}
         {attempts.length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-gray-50">
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
               <h2 className="font-black text-base">So'nggi natijalar</h2>
+              {isOwnProfile && (
+                <button
+                  onClick={() => router.push('/history')}
+                  className="flex items-center gap-1 text-xs text-violet-600 font-bold hover:underline"
+                >
+                  <History className="w-3.5 h-3.5" /> Barchasi
+                </button>
+              )}
             </div>
             {attempts.map(attempt => {
               const acc = Math.round((attempt.correct_answers / attempt.total_questions) * 100)

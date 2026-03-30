@@ -28,7 +28,9 @@ interface BracketProps {
   isFinished: boolean
   championName?: string
   isMyGroupChampion?: boolean
+  onGroupClick?: (groupId: string, groupName: string) => void
 }
+
 
 export default function Bracket({
   matches,
@@ -38,6 +40,7 @@ export default function Bracket({
   isFinished,
   championName,
   isMyGroupChampion,
+  onGroupClick,
 }: BracketProps) {
   const [animated, setAnimated] = useState(false)
   useEffect(() => { setTimeout(() => setAnimated(true), 200) }, [])
@@ -88,6 +91,7 @@ export default function Bracket({
                     myGroupId={myGroupId}
                     isCurrent={isCurrent && !isFinished}
                     size="md"
+                    onGroupClick={onGroupClick}
                   />
                 ))}
               </div>
@@ -137,6 +141,7 @@ export default function Bracket({
                           myGroupId={myGroupId}
                           isCurrent={isCurrent && !isFinished}
                           size="sm"
+                          onGroupClick={onGroupClick}
                         />
                       </div>
                     ))}

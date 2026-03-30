@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { announceChampionAction } from '@/actions/announceChampion'
 import {
   ArrowLeft, Bell, Plus, Trash2, Pin, Loader2,
   Crown, Trophy, Search, Star, CheckCircle
@@ -137,36 +138,35 @@ export default function AdminAnnouncementsPage() {
     ))
   }
 
-  // --- Champions ---
+  // --- Champions (Server Action orqali) ---
   const handleAnnounceChampion = async () => {
     if (!selectedStudent || !weekLabel.trim()) {
       alert('Talabani tanlang va hafta nomini kiriting'); return
     }
     setSavingChampion(true)
+
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    // weekly_champions jadvaliga qo'shish
-    const { data: championData } = await supabase.from('weekly_champions').insert({
-      user_id: selectedStudent.id,
-      week_label: weekLabel.trim(),
+    const result = await announceChampionAction({
+      userId: selectedStudent.id,
+      weekLabel: weekLabel.trim(),
       score: selectedStudent.total_score,
-    }).select().single()
+      fullName: selectedStudent.full_name,
+      groupName: getGroupName(selectedStudent.groups),
+      createdBy: user?.id,
+    })
 
-    if (championData) {
-      // Avtomatik e'lon ham yaratish
-      const fullName = selectedStudent.full_name
-      const groupName = getGroupName(selectedStudent.groups)
-      await supabase.from('announcements').insert({
-        title: `🏆 Hafta qahramoni: ${fullName}`,
-        content: `${weekLabel} hafatasining eng yaxshi talabasi — ${fullName}${groupName ? ` (${groupName})` : ''}! Jami ball: ${selectedStudent.total_score}. Tabriklaymiz! 🎉`,
-        is_pinned: true,
-      })
-
-      await fetchAll()
-      setShowChampionForm(false)
-      setSelectedStudent(null)
-      setSearchQuery('')
+    if (!result.success) {
+      alert('Xatolik: ' + result.error)
+      setSavingChampion(false)
+      return
     }
+
+    await fetchAll()
+    setShowChampionForm(false)
+    setSelectedStudent(null)
+    setSearchQuery('')
     setSavingChampion(false)
   }
 
@@ -236,7 +236,6 @@ export default function AdminAnnouncementsPage() {
         {tab === 'champions' && (
           <div className="space-y-4">
 
-            {/* Champion selection form */}
             {showChampionForm && (
               <div className="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-5">
@@ -250,7 +249,6 @@ export default function AdminAnnouncementsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* Hafta nomi */}
                   <div>
                     <label className="text-sm font-semibold text-gray-700 mb-1.5 block">Hafta nomi</label>
                     <input
@@ -261,7 +259,6 @@ export default function AdminAnnouncementsPage() {
                     />
                   </div>
 
-                  {/* Talaba qidirish */}
                   <div>
                     <label className="text-sm font-semibold text-gray-700 mb-1.5 block">Talaba tanlang</label>
                     <div className="relative mb-3">
@@ -285,7 +282,6 @@ export default function AdminAnnouncementsPage() {
                               : 'border-gray-100 hover:border-violet-200 hover:bg-gray-50'
                           }`}
                         >
-                          {/* Rank badge */}
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${
                             index === 0 ? 'bg-amber-100 text-amber-700' :
                             index === 1 ? 'bg-gray-100 text-gray-600' :
@@ -295,7 +291,6 @@ export default function AdminAnnouncementsPage() {
                             {index < 3 ? ['👑', '🥈', '🥉'][index] : `${index + 1}`}
                           </div>
 
-                          {/* Avatar */}
                           {student.avatar_url ? (
                             <img src={student.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
                           ) : (
@@ -324,7 +319,6 @@ export default function AdminAnnouncementsPage() {
                     </div>
                   </div>
 
-                  {/* Selected preview */}
                   {selectedStudent && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
                       <Crown className="w-5 h-5 text-amber-600 flex-shrink-0" />
@@ -358,7 +352,6 @@ export default function AdminAnnouncementsPage() {
               </div>
             )}
 
-            {/* Champions list */}
             {champions.length === 0 ? (
               <div className="bg-white border border-gray-100 rounded-2xl text-center py-20 shadow-sm">
                 <Trophy className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -378,12 +371,11 @@ export default function AdminAnnouncementsPage() {
                   <div key={champion.id} className={`bg-white border rounded-2xl p-5 shadow-sm flex items-center gap-4 ${
                     index === 0 ? 'border-amber-200' : 'border-gray-100'
                   }`}>
-                    {index === 0 && (
+                    {index === 0 ? (
                       <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
                         <Crown className="w-6 h-6 text-amber-600" />
                       </div>
-                    )}
-                    {index > 0 && (
+                    ) : (
                       <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
                         <Trophy className="w-6 h-6 text-gray-400" />
                       </div>

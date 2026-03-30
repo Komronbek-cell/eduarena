@@ -47,6 +47,13 @@ export default function TournamentPage() {
   const [loading, setLoading] = useState(true)
   const [animated, setAnimated] = useState(false)
   const [view, setView] = useState<'bracket' | 'my'>('bracket')
+  const [currentRoundQuizId, setCurrentRoundQuizId] = useState<string | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<{
+    id: string
+    name: string
+    members: { id: string; full_name: string; score: number; avatar_url?: string }[]
+  } | null>(null)
+  const [loadingGroup, setLoadingGroup] = useState(false)
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -70,16 +77,76 @@ export default function TournamentPage() {
         .eq('tournament_id', tourData.id)
         .order('round').order('created_at')
       setMatches((matchesData as any) ?? [])
+
+      // Joriy tur quizini olish
+      const { data: roundQuiz } = await supabase
+        .from('tournament_round_quizzes')
+        .select('quiz_id')
+        .eq('tournament_id', tourData.id)
+        .eq('round', tourData.current_round)
+        .maybeSingle()
+
+      setCurrentRoundQuizId(roundQuiz?.quiz_id ?? null)
     }
 
     setLoading(false)
     setTimeout(() => setAnimated(true), 100)
   }, [router])
 
+  const handleGroupClick = async (groupId: string, groupName: string) => {
+    setLoadingGroup(true)
+    setSelectedGroup({ id: groupId, name: groupName, members: [] })
+
+    const supabase = createClient()
+
+    const { data: members } = await supabase
+      .from('profiles')
+      .select('id, full_name, total_score, avatar_url')
+      .eq('group_id', groupId)
+      .eq('role', 'student')
+      .order('total_score', { ascending: false })
+
+    if (!members) {
+      setSelectedGroup({ id: groupId, name: groupName, members: [] })
+      setLoadingGroup(false)
+      return
+    }
+
+    const tournamentQuizIds = matches
+      .filter(m => m.quiz_id)
+      .map(m => m.quiz_id as string)
+
+    const memberIds = members.map(m => m.id)
+    let attemptScores: Record<string, number> = {}
+
+    if (tournamentQuizIds.length > 0) {
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select('user_id, score')
+        .in('user_id', memberIds)
+        .in('quiz_id', tournamentQuizIds)
+
+      attempts?.forEach(a => {
+        attemptScores[a.user_id] = (attemptScores[a.user_id] ?? 0) + a.score
+      })
+    }
+
+    setSelectedGroup({
+      id: groupId,
+      name: groupName,
+      members: members.map(m => ({
+        id: m.id,
+        full_name: m.full_name,
+        score: attemptScores[m.id] ?? 0,
+        avatar_url: m.avatar_url,
+      })),
+    })
+    setLoadingGroup(false)
+  }
+
   useEffect(() => {
     fetchData()
 
-    // Real vaqt yangilash
     const supabase = createClient()
     const channel = supabase
       .channel('tournament-realtime')
@@ -134,7 +201,6 @@ export default function TournamentPage() {
   const allRounds = Array.from(new Set(matches.map(m => m.round)))
   const maxRound = Math.max(...allRounds)
 
-  // Guruhim haqida
   const myCurrentMatch = matches.find(m =>
     (m.group1_id === myGroupId || m.group2_id === myGroupId) &&
     m.round === tournament.current_round &&
@@ -146,7 +212,6 @@ export default function TournamentPage() {
   const myWins = myMatches.filter(m => m.winner_group_id === myGroupId).length
   const isEliminated = myMatches.some(m => m.status === 'finished' && m.winner_group_id !== myGroupId)
 
-  // Chempion
   const finalMatch = matches.find(m => m.round === maxRound && m.status === 'finished')
   const champGroupId = finalMatch?.winner_group_id
   const champName = champGroupId === finalMatch?.group1_id
@@ -171,21 +236,18 @@ export default function TournamentPage() {
             }}
           />
         ))}
-        {/* Glow orbs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-10 blur-3xl"
           style={{ background: 'radial-gradient(circle, #7c3aed, transparent)' }} />
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full opacity-10 blur-3xl"
           style={{ background: 'radial-gradient(circle, #f97316, transparent)' }} />
       </div>
 
-      {/* Fire at bottom of hero */}
       {!isFinished && (
         <div className="fixed bottom-16 md:bottom-0 left-0 right-0 pointer-events-none z-0">
           <FireEffect intensity="low" className="h-16" />
         </div>
       )}
 
-      {/* Navbar */}
       <nav className="relative z-20 border-b border-white/10 px-4 py-4 backdrop-blur-md bg-black/30">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -195,7 +257,6 @@ export default function TournamentPage() {
             <Image src="/logo.png" alt="GULDU" width={28} height={28} className="rounded-md object-cover" />
             <span className="font-black text-base text-white">Turnir</span>
           </div>
-
           <div className="flex items-center gap-2">
             {!isFinished ? (
               <span className="flex items-center gap-1.5 text-xs bg-red-500/20 text-orange-300 px-3 py-1.5 rounded-full font-bold border border-orange-500/30 animate-pulse">
@@ -212,9 +273,7 @@ export default function TournamentPage() {
 
       <main className="relative z-10 max-w-5xl mx-auto px-4 py-6 md:py-8">
 
-        {/* Hero */}
         <div className={`text-center mb-8 transition-all duration-700 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          {/* Trophy icon */}
           <div className="relative inline-block mb-4">
             <div className="text-6xl md:text-8xl filter drop-shadow-lg">
               {isFinished ? '👑' : '🔥'}
@@ -224,7 +283,6 @@ export default function TournamentPage() {
                 style={{ background: 'radial-gradient(circle, #f97316, transparent)' }} />
             )}
           </div>
-
           <h1 className="text-2xl md:text-4xl font-black text-white mb-2 leading-tight">
             {tournament.title}
           </h1>
@@ -234,8 +292,6 @@ export default function TournamentPage() {
               : `${tournament.current_round}-tur · ${totalGroups} guruh ishtirok etmoqda`
             }
           </p>
-
-          {/* Bonus prizes */}
           <div className="flex items-center justify-center gap-2 md:gap-4 flex-wrap">
             {[
               { emoji: '🥇', label: 'Chempion', val: tournament.bonus_champion, glow: 'shadow-yellow-500/30', bg: 'from-yellow-500/20 to-amber-500/10 border-yellow-500/40' },
@@ -251,7 +307,6 @@ export default function TournamentPage() {
           </div>
         </div>
 
-        {/* My group status */}
         {myGroupId && (
           <div className={`mb-6 transition-all duration-700 delay-200 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             {isEliminated && !isMyGroupChampion ? (
@@ -285,45 +340,28 @@ export default function TournamentPage() {
                       Jonli
                     </span>
                   </div>
-
-                  {/* Live score */}
                   <div className="flex items-center gap-4 mb-4">
-                    <div className={`flex-1 text-center p-3 rounded-xl ${
-                      myCurrentMatch.group1_id === myGroupId ? 'bg-violet-500/20 border border-violet-500/40' : 'bg-white/5'
-                    }`}>
-                      <p className="text-white/70 text-xs font-bold truncate mb-1">
-                        {myCurrentMatch.group1?.name}
-                      </p>
-                      <p className="text-xs text-white/30 truncate mb-1 hidden md:block">
-                        {myCurrentMatch.group1?.description}
-                      </p>
+                    <div className={`flex-1 text-center p-3 rounded-xl ${myCurrentMatch.group1_id === myGroupId ? 'bg-violet-500/20 border border-violet-500/40' : 'bg-white/5'}`}>
+                      <p className="text-white/70 text-xs font-bold truncate mb-1">{myCurrentMatch.group1?.name}</p>
+                      <p className="text-xs text-white/30 truncate mb-1 hidden md:block">{myCurrentMatch.group1?.description}</p>
                       <p className="text-3xl font-black text-violet-400">{myCurrentMatch.group1_score.toFixed(1)}</p>
                       {myCurrentMatch.group1_participants !== undefined && (
                         <p className="text-xs text-white/30 mt-1">{myCurrentMatch.group1_participants} ishtirok</p>
                       )}
                     </div>
-
                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
                       <Swords className="w-6 h-6 text-orange-400" />
                       <span className="text-white/30 text-xs font-black">VS</span>
                     </div>
-
-                    <div className={`flex-1 text-center p-3 rounded-xl ${
-                      myCurrentMatch.group2_id === myGroupId ? 'bg-violet-500/20 border border-violet-500/40' : 'bg-white/5'
-                    }`}>
-                      <p className="text-white/70 text-xs font-bold truncate mb-1">
-                        {myCurrentMatch.group2?.name}
-                      </p>
-                      <p className="text-xs text-white/30 truncate mb-1 hidden md:block">
-                        {myCurrentMatch.group2?.description}
-                      </p>
+                    <div className={`flex-1 text-center p-3 rounded-xl ${myCurrentMatch.group2_id === myGroupId ? 'bg-violet-500/20 border border-violet-500/40' : 'bg-white/5'}`}>
+                      <p className="text-white/70 text-xs font-bold truncate mb-1">{myCurrentMatch.group2?.name}</p>
+                      <p className="text-xs text-white/30 truncate mb-1 hidden md:block">{myCurrentMatch.group2?.description}</p>
                       <p className="text-3xl font-black text-violet-400">{myCurrentMatch.group2_score.toFixed(1)}</p>
                       {myCurrentMatch.group2_participants !== undefined && (
                         <p className="text-xs text-white/30 mt-1">{myCurrentMatch.group2_participants} ishtirok</p>
                       )}
                     </div>
                   </div>
-
                   {myCurrentMatch.ends_at && (
                     <div className="flex items-center justify-center gap-1.5 text-xs text-white/30 mb-3">
                       <Clock className="w-3 h-3" />
@@ -332,10 +370,9 @@ export default function TournamentPage() {
                       })} gacha
                     </div>
                   )}
-
-                  {myCurrentMatch.quiz_id && (
+                  {currentRoundQuizId && (
                     <button
-                      onClick={() => router.push(`/quiz/${myCurrentMatch.quiz_id}`)}
+                      onClick={() => router.push(`/quiz/${currentRoundQuizId}`)}
                       className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-black py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-violet-500/30"
                     >
                       <Zap className="w-4 h-4" />
@@ -356,27 +393,21 @@ export default function TournamentPage() {
           </div>
         )}
 
-        {/* View tabs */}
         <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-2xl border border-white/10">
           <button
             onClick={() => setView('bracket')}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 ${
-              view === 'bracket' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' : 'text-white/50 hover:text-white'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 ${view === 'bracket' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' : 'text-white/50 hover:text-white'}`}
           >
             <Trophy className="w-4 h-4" /> Turnir jadvali
           </button>
           <button
             onClick={() => setView('my')}
-            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 ${
-              view === 'my' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' : 'text-white/50 hover:text-white'
-            }`}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 ${view === 'my' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' : 'text-white/50 hover:text-white'}`}
           >
             <Users className="w-4 h-4" /> Mening matchlarim
           </button>
         </div>
 
-        {/* Bracket view */}
         {view === 'bracket' && (
           <div className={`transition-all duration-500 ${animated ? 'opacity-100' : 'opacity-0'}`}>
             <Bracket
@@ -387,11 +418,11 @@ export default function TournamentPage() {
               isFinished={isFinished}
               championName={champName}
               isMyGroupChampion={isMyGroupChampion}
+              onGroupClick={handleGroupClick}
             />
           </div>
         )}
 
-        {/* My matches view */}
         {view === 'my' && (
           <div className="space-y-4">
             {myMatches.length === 0 ? (
@@ -403,7 +434,6 @@ export default function TournamentPage() {
               const isCurrent = match.round === tournament.current_round && !isFinished
               const isWin = match.status === 'finished' && match.winner_group_id === myGroupId
               const isLoss = match.status === 'finished' && match.winner_group_id !== myGroupId
-
               return (
                 <div key={match.id} className={`rounded-2xl border p-5 ${
                   isCurrent ? 'border-violet-500/50 bg-violet-500/10' :
@@ -426,19 +456,14 @@ export default function TournamentPage() {
                        `${match.round}-tur`}
                     </span>
                   </div>
-
                   <div className="flex items-center gap-3">
-                    <div className={`flex-1 text-center p-3 rounded-xl ${
-                      match.group1_id === myGroupId ? 'bg-violet-500/20' : 'bg-white/5'
-                    }`}>
+                    <div className={`flex-1 text-center p-3 rounded-xl ${match.group1_id === myGroupId ? 'bg-violet-500/20' : 'bg-white/5'}`}>
                       <p className="text-white/80 font-black text-xs">{match.group1?.name}</p>
                       <p className="text-xs text-white/30">{match.group1?.description}</p>
                       <p className="text-2xl font-black text-violet-400 mt-1">{match.group1_score.toFixed(1)}</p>
                     </div>
                     <Swords className="w-4 h-4 text-white/20 flex-shrink-0" />
-                    <div className={`flex-1 text-center p-3 rounded-xl ${
-                      match.group2_id === myGroupId ? 'bg-violet-500/20' : 'bg-white/5'
-                    }`}>
+                    <div className={`flex-1 text-center p-3 rounded-xl ${match.group2_id === myGroupId ? 'bg-violet-500/20' : 'bg-white/5'}`}>
                       <p className="text-white/80 font-black text-xs">{match.group2?.name}</p>
                       <p className="text-xs text-white/30">{match.group2?.description}</p>
                       <p className="text-2xl font-black text-violet-400 mt-1">{match.group2_score.toFixed(1)}</p>
@@ -450,6 +475,88 @@ export default function TournamentPage() {
           </div>
         )}
       </main>
+
+      {/* Group Members Modal */}
+      {selectedGroup && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setSelectedGroup(null)}
+        >
+          <div
+            className="w-full md:max-w-md bg-gray-900 border border-white/10 rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-5 pt-5 pb-4 border-b border-white/10">
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4 md:hidden" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-white/40 font-semibold mb-0.5">Guruh a'zolari</p>
+                  <h3 className="text-lg font-black text-white">{selectedGroup.name}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedGroup(null)}
+                  className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition text-white/60 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-y-auto max-h-[60vh] p-4 space-y-2">
+              {loadingGroup ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                </div>
+              ) : selectedGroup.members.length === 0 ? (
+                <div className="text-center py-12 text-white/30">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">A'zolar topilmadi</p>
+                </div>
+              ) : selectedGroup.members.map((member, index) => (
+                <div
+                  key={member.id}
+                  className={`flex items-center gap-3 p-3 rounded-2xl border transition ${
+                    index === 0 ? 'border-yellow-500/40 bg-yellow-500/10' :
+                    index === 1 ? 'border-slate-400/30 bg-slate-400/5' :
+                    index === 2 ? 'border-amber-600/30 bg-amber-600/5' :
+                    'border-white/5 bg-white/5'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 ${
+                    index === 0 ? 'bg-yellow-500 text-white' :
+                    index === 1 ? 'bg-slate-400 text-white' :
+                    index === 2 ? 'bg-amber-600 text-white' :
+                    'bg-white/10 text-white/50'
+                  }`}>
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                  </div>
+                  <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center font-black text-sm text-white flex-shrink-0 overflow-hidden">
+                    {member.avatar_url ? (
+                      <img src={member.avatar_url} alt={member.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      member.full_name?.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-white text-sm truncate">{member.full_name}</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Star className="w-3.5 h-3.5 text-yellow-400" />
+                    <span className="font-black text-white text-sm">{member.score.toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-4 border-t border-white/10">
+              <p className="text-center text-xs text-white/30">
+                {selectedGroup.members.length} ta a'zo · Turnir bali bo'yicha tartiblangan
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
 

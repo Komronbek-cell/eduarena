@@ -15,6 +15,8 @@ interface GroupStat {
   studentCount: number
   topStreak: number
   topStudent: string
+  activityRate: number
+  compositeRating: number
 }
 
 export default function GroupsPage() {
@@ -33,14 +35,28 @@ export default function GroupsPage() {
         .from('profiles').select('group_id').eq('id', user.id).single()
       setCurrentGroupId(profileData?.group_id ?? null)
 
-      const [{ data: groupsData }, { data: students }] = await Promise.all([
+      const [{ data: groupsData }, { data: students }, { data: allQuizzes }] = await Promise.all([
         supabase.from('groups').select('id, name, description'),
-        supabase.from('profiles').select('group_id, total_score, streak, full_name').eq('role', 'student'),
+        supabase.from('profiles').select('id, group_id, total_score, streak, full_name').eq('role', 'student'),
+        supabase.from('quizzes').select('id').neq('status', 'draft'),
       ])
 
       if (!groupsData || !students) { setLoading(false); return }
 
-      const groupStats: GroupStat[] = groupsData
+      const totalQuizCount = allQuizzes?.length ?? 0
+      const allStudentIds = students.map(s => s.id)
+
+      const { data: attemptData } = totalQuizCount > 0 && allStudentIds.length > 0
+        ? await supabase.from('quiz_attempts').select('user_id').in('user_id', allStudentIds)
+        : { data: [] }
+
+      // Har bir student nechta quiz yechganini hisoblash
+      const attemptCountMap: Record<string, number> = {}
+      attemptData?.forEach(a => {
+        attemptCountMap[a.user_id] = (attemptCountMap[a.user_id] ?? 0) + 1
+      })
+
+      const rawStats = groupsData
         .map(group => {
           const gs = students.filter(s => s.group_id === group.id)
           if (gs.length === 0) return null
@@ -48,6 +64,10 @@ export default function GroupsPage() {
           const avgScore = Math.round(totalScore / gs.length)
           const topStreak = Math.max(...gs.map(s => s.streak ?? 0))
           const topStudent = [...gs].sort((a, b) => (b.total_score ?? 0) - (a.total_score ?? 0))[0]?.full_name ?? '—'
+          const totalAttempts = gs.reduce((sum, s) => sum + (attemptCountMap[s.id] ?? 0), 0)
+          const activityRate = totalQuizCount > 0
+            ? Math.round((totalAttempts / (gs.length * totalQuizCount)) * 100)
+            : 0
           return {
             id: group.id,
             name: group.name,
@@ -57,10 +77,27 @@ export default function GroupsPage() {
             studentCount: gs.length,
             topStreak,
             topStudent,
+            activityRate,
+            compositeRating: 0, // keyinroq hisoblanadi
           }
         })
-        .filter(Boolean)
-        .sort((a, b) => b!.avgScore - a!.avgScore) as GroupStat[]
+        .filter(Boolean) as GroupStat[]
+
+      // Normalizatsiya: eng yaxshi guruhga nisbatan reyting
+      const maxAvg = Math.max(...rawStats.map(g => g.avgScore), 1)
+      const maxCount = Math.max(...rawStats.map(g => g.studentCount), 1)
+
+      const groupStats: GroupStat[] = rawStats
+        .map(g => ({
+          ...g,
+          // O'rt.ball 40% + faollik 35% + talabalar soni 25%
+          compositeRating: Math.round(
+            (g.avgScore / maxAvg) * 40 +
+            (g.activityRate / 100) * 35 +
+            (g.studentCount / maxCount) * 25
+          ),
+        }))
+        .sort((a, b) => b.compositeRating - a.compositeRating)
 
       setGroups(groupStats)
       setLoading(false)
@@ -115,7 +152,7 @@ export default function GroupsPage() {
                 <div className="text-center mb-5 md:mb-8">
                   <p className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-1">Top guruhlar</p>
                   <h2 className="text-lg md:text-2xl font-black">🏆 Eng yaxshi guruhlar</h2>
-                  <p className="text-gray-400 text-xs mt-1">O'rtacha ball bo'yicha · Guruhni bosib a'zolarni ko'ring</p>
+                  <p className="text-gray-400 text-xs mt-1">Ball + faollik + a'zolar soni · Guruhni bosib a'zolarni ko'ring</p>
                 </div>
 
                 <div className="flex items-end justify-center gap-2 md:gap-8">
@@ -153,9 +190,9 @@ export default function GroupsPage() {
                             isFirst ? 'text-violet-600' : 'text-gray-700'
                           }`}>
                             <Star className="w-3 h-3 md:w-4 md:h-4" />
-                            {group.avgScore}
+                            {group.compositeRating}
                           </div>
-                          <p className="text-xs text-gray-400 hidden md:block">o'rtacha</p>
+                          <p className="text-xs text-gray-400 hidden md:block">reyting</p>
                         </div>
 
                         <div className={`w-full ${config.height} ${config.bg} border-2 ${config.border} rounded-t-xl md:rounded-t-2xl flex flex-col items-center justify-center gap-0.5 ${(config as any).shadow ?? ''}`}>
@@ -218,8 +255,8 @@ export default function GroupsPage() {
                           <span className="flex items-center gap-0.5">
                             <Users className="w-3 h-3" />{group.studentCount}
                           </span>
-                          <span className="flex items-center gap-0.5">
-                            <Trophy className="w-3 h-3" />{group.totalScore}
+                          <span className="flex items-center gap-0.5 text-green-600 font-semibold">
+                            {group.activityRate}% faol
                           </span>
                           {group.topStreak > 0 && (
                             <span className="flex items-center gap-0.5 text-orange-500">
@@ -236,13 +273,14 @@ export default function GroupsPage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <div className="text-right">
                           <div className={`text-lg md:text-2xl font-black ${isCurrentGroup ? 'text-violet-600' : 'text-gray-900'}`}>
-                            {group.avgScore}
+                            {group.compositeRating}
                           </div>
-                          <div className="text-xs text-gray-400">ball</div>
-                          <div className="w-14 md:w-20 h-1.5 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
+                          <div className="text-xs text-gray-400">reyting</div>
+                          <div className="text-xs text-gray-400">{group.avgScore} ball</div>
+                          <div className="w-14 md:w-20 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
                             <div
                               className={`h-full rounded-full ${isCurrentGroup ? 'bg-violet-500' : 'bg-gray-300'}`}
-                              style={{ width: `${Math.min(100, (group.avgScore / (groups[0]?.avgScore || 1)) * 100)}%` }}
+                              style={{ width: `${group.compositeRating}%` }}
                             />
                           </div>
                         </div>
@@ -258,7 +296,7 @@ export default function GroupsPage() {
             <div className="mt-4 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 flex items-start gap-3">
               <TrendingUp className="w-4 h-4 text-violet-500 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-violet-600 leading-relaxed">
-                <span className="font-bold">Guruh reytingi</span> o'rtacha ball asosida hisoblanadi — adolatli raqobat uchun. Guruh ustiga bosib a'zolarni ko'ring.
+                <span className="font-bold">Guruh reytingi</span> uch omil asosida hisoblanadi: o'rtacha ball (40%) + faollik (35%) + a'zolar soni (25%). Guruh ustiga bosib a'zolarni ko'ring.
               </p>
             </div>
           </>

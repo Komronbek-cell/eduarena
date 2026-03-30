@@ -9,7 +9,7 @@ import Image from 'next/image'
 import {
   Trophy, Flame, Star, Target, TrendingUp,
   LogOut, Loader2, ChevronRight, Medal, Zap,
-  Bell, Users, CheckCircle, History, Calendar
+  Bell, Users, CheckCircle, History, Calendar, Lock
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const [dailyQuiz, setDailyQuiz] = useState<Quiz | null>(null)
   const [weeklyQuiz, setWeeklyQuiz] = useState<Quiz | null>(null)
   const [rank, setRank] = useState<number>(0)
+  const [groupRank, setGroupRank] = useState<number>(0)
+  const [groupMemberCount, setGroupMemberCount] = useState<number>(0)
   const [quizCount, setQuizCount] = useState<number>(0)
   const [announcementCount, setAnnouncementCount] = useState<number>(0)
   const [completedQuizIds, setCompletedQuizIds] = useState<string[]>([])
@@ -42,10 +44,16 @@ export default function DashboardPage() {
         supabase.from('profiles').select('*, groups(name)').eq('id', user.id).single(),
         supabase.from('quizzes').select('*').eq('status', 'active'),
         supabase.from('quiz_attempts').select('id, quiz_id').eq('user_id', user.id),
-        supabase.from('profiles').select('id, total_score').eq('role', 'student').order('total_score', { ascending: false }),
+        supabase.from('profiles').select('id, total_score, group_id').eq('role', 'student').order('total_score', { ascending: false }),
         supabase.from('announcements').select('id'),
         supabase.from('student_achievements').select('achievement_id, achievements(title, icon)').eq('user_id', user.id),
       ])
+
+      // Guruh tanlanmagan bo'lsa setup sahifasiga yo'naltirish
+      if (profileData && !profileData.group_id) {
+        router.push('/profile?setup=1')
+        return
+      }
 
       setProfile(profileData)
       setQuizCount(attempts?.length ?? 0)
@@ -56,6 +64,13 @@ export default function DashboardPage() {
       if (allStudents) {
         const rankIndex = allStudents.findIndex(s => s.id === user.id)
         setRank(rankIndex + 1)
+
+        if (profileData?.group_id) {
+          const groupMembers = allStudents.filter(s => s.group_id === profileData.group_id)
+          const groupRankIdx = groupMembers.findIndex(s => s.id === user.id)
+          setGroupRank(groupRankIdx + 1)
+          setGroupMemberCount(groupMembers.length)
+        }
       }
 
       if (quizzes) {
@@ -91,10 +106,12 @@ export default function DashboardPage() {
   )
 
   const groupName = (profile as any)?.groups?.name
+  const groupId = (profile as any)?.group_id
   const avatarUrl = (profile as any)?.avatar_url
   const isDailyCompleted = dailyQuiz ? completedQuizIds.includes(dailyQuiz.id) : false
   const isWeeklyCompleted = weeklyQuiz ? completedQuizIds.includes(weeklyQuiz.id) : false
   const earnedTitles = achievements.map((a: any) => a.achievements?.title)
+  const showStreakWarning = (profile?.streak ?? 0) > 1 && dailyQuiz && !isDailyCompleted
 
   const allBadges = [
     { icon: '🎯', title: 'Birinchi qadam' },
@@ -125,33 +142,28 @@ export default function DashboardPage() {
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-100 px-4 md:px-6 py-3 md:py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-2">
             <Image src="/logo.png" alt="GULDU" width={32} height={32} className="rounded-lg object-cover" />
             <span className="font-black text-base md:text-lg tracking-tight">EduArena</span>
           </div>
 
-          {/* Desktop nav — faqat md va undan katta */}
+          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
-            <button onClick={() => router.push('/quizzes')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <Zap className="w-4 h-4" /> Quizlar
-            </button>
-            <button onClick={() => router.push('/leaderboard')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <Medal className="w-4 h-4" /> Reyting
-            </button>
-            <button onClick={() => router.push('/groups')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <Users className="w-4 h-4" /> Guruhlar
-            </button>
-            <button onClick={() => router.push('/team')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <Users className="w-4 h-4" /> Jamoa
-            </button>
-            <button onClick={() => router.push('/history')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <History className="w-4 h-4" /> Tarix
-            </button>
-            <button onClick={() => router.push('/announcements')} className="relative flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition">
-              <Bell className="w-4 h-4" /> E'lonlar
-              {announcementCount > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
-            </button>
+            {[
+              { href: '/quizzes', icon: Zap, label: 'Quizlar' },
+              { href: '/leaderboard', icon: Medal, label: 'Reyting' },
+              { href: '/groups', icon: Users, label: 'Guruhlar' },
+              { href: '/history', icon: History, label: 'Tarix' },
+              { href: '/announcements', icon: Bell, label: "E'lonlar" },
+            ].map(item => (
+              <button
+                key={item.href}
+                onClick={() => router.push(item.href)}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition"
+              >
+                <item.icon className="w-4 h-4" /> {item.label}
+              </button>
+            ))}
             <button onClick={() => router.push('/profile')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition ml-1">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="avatar" className="w-6 h-6 rounded-full object-cover" />
@@ -167,7 +179,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Mobile — faqat logout va profil */}
+          {/* Mobile */}
           <div className="flex md:hidden items-center gap-1">
             <button onClick={() => router.push('/profile')} className="flex items-center">
               {avatarUrl ? (
@@ -188,7 +200,7 @@ export default function DashboardPage() {
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-8 pb-24 md:pb-8">
 
         {/* Welcome */}
-        <div className={`mb-5 md:mb-8 transition-all duration-700 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`mb-4 transition-all duration-700 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs text-gray-400 mb-0.5">{getGreeting()},</p>
@@ -199,15 +211,14 @@ export default function DashboardPage() {
                 {groupName ? `${groupName} guruhi` : 'Guruh belgilanmagan'} · Bugun ham g'alaba qozonish vaqti!
               </p>
             </div>
-            {profile?.streak && profile.streak > 0 ? (
+            {(profile?.streak ?? 0) > 0 && (
               <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-100 text-orange-600 px-3 py-1.5 rounded-xl flex-shrink-0">
-                <Flame className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                <span className="font-bold text-xs md:text-sm">{profile.streak} kun 🔥</span>
+                <Flame className="w-3.5 h-3.5" />
+                <span className="font-bold text-xs md:text-sm">{profile!.streak} kun 🔥</span>
               </div>
-            ) : null}
+            )}
           </div>
 
-          {/* Rank banner — faqat top 3 da */}
           {rank > 0 && rank <= 3 && (
             <div className={`mt-3 bg-gradient-to-r ${
               rank === 1 ? 'from-yellow-400 to-amber-500' :
@@ -225,8 +236,31 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Streak xavfi banneri */}
+        {showStreakWarning && (
+          <div className={`mb-4 transition-all duration-700 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <Flame className="w-5 h-5 text-orange-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-orange-700">
+                  {profile!.streak} kunlik streakingiz xavfda!
+                </p>
+                <p className="text-xs text-orange-500">Bugun quiz yeching — streakni saqlang</p>
+              </div>
+              <button
+                onClick={() => router.push(`/quiz/${dailyQuiz!.id}`)}
+                className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex-shrink-0"
+              >
+                Yechish
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
-        <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 md:mb-8 transition-all duration-700 delay-100 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-5 transition-all duration-700 delay-100 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { icon: <Star className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-violet-600 bg-violet-50', label: 'Umumiy ball', value: profile?.total_score ?? 0, suffix: '', onClick: () => router.push('/leaderboard') },
             { icon: <Flame className="w-4 h-4 md:w-5 md:h-5" />, color: 'text-orange-500 bg-orange-50', label: 'Streak', value: profile?.streak ?? 0, suffix: ' kun', onClick: null },
@@ -240,7 +274,7 @@ export default function DashboardPage() {
                 s.onClick ? 'cursor-pointer hover:shadow-md hover:border-violet-200 transition' : ''
               }`}
             >
-              <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center mb-2.5 md:mb-3 ${s.color}`}>
+              <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center mb-2.5 ${s.color}`}>
                 {s.icon}
               </div>
               <p className="text-xl md:text-2xl font-black text-gray-900">{s.value}{s.suffix}</p>
@@ -250,7 +284,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quiz kartalar */}
-        <div className={`grid md:grid-cols-2 gap-3 md:gap-4 mb-5 md:mb-8 transition-all duration-700 delay-200 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid md:grid-cols-2 gap-3 md:gap-4 mb-5 transition-all duration-700 delay-200 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {/* Kunlik quiz */}
           <div className={`rounded-2xl p-5 md:p-6 border transition-all ${
             isDailyCompleted ? 'bg-green-50 border-green-200' :
@@ -271,7 +305,6 @@ export default function DashboardPage() {
                 <span className="ml-auto bg-white/20 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">● Faol</span>
               )}
             </div>
-
             {isDailyCompleted ? (
               <>
                 <h3 className="text-base md:text-lg font-black text-green-800 mb-1">{dailyQuiz?.title}</h3>
@@ -290,7 +323,7 @@ export default function DashboardPage() {
                   onClick={() => router.push(`/quiz/${dailyQuiz.id}`)}
                   className="flex items-center gap-2 bg-white text-violet-700 font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-50 transition shadow-md"
                 >
-                  Boshlash <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Boshlash <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </>
             ) : (
@@ -324,7 +357,6 @@ export default function DashboardPage() {
                 <span className="ml-auto bg-white/10 text-gray-300 text-xs px-2 py-0.5 rounded-full animate-pulse">● Faol</span>
               )}
             </div>
-
             {isWeeklyCompleted ? (
               <>
                 <h3 className="text-base md:text-lg font-black text-green-800 mb-1">{weeklyQuiz?.title}</h3>
@@ -343,7 +375,7 @@ export default function DashboardPage() {
                   onClick={() => router.push(`/quiz/${weeklyQuiz.id}`)}
                   className="flex items-center gap-2 bg-violet-600 text-white font-bold text-xs md:text-sm px-4 md:px-5 py-2 md:py-2.5 rounded-xl hover:bg-violet-700 transition"
                 >
-                  Qatnashish <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  Qatnashish <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </>
             ) : (
@@ -358,93 +390,108 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Bottom grid */}
-        <div className={`grid md:grid-cols-3 gap-3 md:gap-4 transition-all duration-700 delay-300 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Quyi qator: 3 karta */}
+        <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-3 transition-all duration-700 delay-300 ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+
           {/* E'lonlar */}
           <div
             onClick={() => router.push('/announcements')}
-            className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
+            className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
           >
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <h2 className="font-black text-base md:text-lg flex items-center gap-2">
-                <Bell className="w-4 h-4 md:w-5 md:h-5 text-violet-600" />
-                E'lonlar
-                {announcementCount > 0 && (
-                  <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{announcementCount}</span>
-                )}
-              </h2>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
+                <Bell className="w-4 h-4 text-orange-500" />
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
             </div>
-            <p className="text-gray-400 text-xs md:text-sm">
-              {announcementCount > 0 ? `${announcementCount} ta yangi e'lon mavjud` : "Hozircha e'lon yo'q"}
+            <p className="font-black text-sm text-gray-900 mb-0.5">
+              E'lonlar
+              {announcementCount > 0 && (
+                <span className="ml-1.5 bg-red-100 text-red-600 text-xs font-bold px-1.5 py-0.5 rounded-full">{announcementCount}</span>
+              )}
+            </p>
+            <p className="text-xs text-gray-400">
+              {announcementCount > 0 ? `${announcementCount} ta yangi` : 'Yangi e\'lon yo\'q'}
             </p>
           </div>
 
-          {/* Jamoa */}
-<div
-  onClick={() => router.push('/team')}
-  className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
->
-  <div className="flex items-center justify-between mb-3 md:mb-4">
-    <h2 className="font-black text-base md:text-lg flex items-center gap-2">
-      <Users className="w-4 h-4 md:w-5 md:h-5 text-violet-600" />
-      Jamoa
-    </h2>
-    <ChevronRight className="w-4 h-4 text-gray-400" />
-  </div>
-  <p className="text-gray-400 text-xs md:text-sm">EduArena jamoasi bilan tanishing</p>
-</div>
-{/* Turnir */}
-<div
-  onClick={() => router.push('/tournament')}
-  className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm cursor-pointer hover:shadow-md hover:border-orange-200 transition"
->
-  <div className="flex items-center justify-between mb-3 md:mb-4">
-    <h2 className="font-black text-base md:text-lg flex items-center gap-2">
-      <Flame className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
-      Turnir
-    </h2>
-    <ChevronRight className="w-4 h-4 text-gray-400" />
-  </div>
-  <p className="text-gray-400 text-xs md:text-sm">Guruhlar o'rtasida musobaqa</p>
-</div>
+          {/* Guruh */}
+          <div
+            onClick={() => groupId ? router.push(`/groups/${groupId}`) : router.push('/groups')}
+            className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5 shadow-sm cursor-pointer hover:shadow-md hover:border-violet-200 transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                <Users className="w-4 h-4 text-violet-600" />
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
+            </div>
+            <p className="font-black text-sm text-gray-900 mb-0.5 truncate">{groupName ?? 'Guruh'}</p>
+            <p className="text-xs text-gray-400">
+              {groupRank > 0 ? `Guruhda #${groupRank} · ${groupMemberCount} a'zo` : 'Guruh reytingi'}
+            </p>
+          </div>
 
-          {/* Yutuqlar */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 md:p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <h2 className="font-black text-base md:text-lg">Yutuqlar</h2>
-              <span className="text-xs md:text-sm font-bold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full">
-                {achievements.length}/6
-              </span>
+          {/* Turnir — col-span-2 on mobile */}
+          <div
+            onClick={() => router.push('/tournament')}
+            className="col-span-2 md:col-span-1 bg-white border border-gray-100 rounded-2xl p-4 md:p-5 shadow-sm cursor-pointer hover:shadow-md hover:border-orange-200 transition"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-red-500" />
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
             </div>
-            <div className="grid grid-cols-6 gap-1.5 md:gap-2">
-              {allBadges.map((a, i) => {
-                const earned = earnedTitles.includes(a.title)
-                return (
-                  <div
-                    key={i}
-                    title={a.title}
-                    className={`flex flex-col items-center p-1.5 md:p-2 rounded-xl border transition ${
-                      earned
-                        ? 'border-violet-200 bg-violet-50 shadow-sm scale-110'
-                        : 'border-gray-100 bg-gray-50 opacity-40'
-                    }`}
-                  >
-                    <span className="text-lg md:text-xl">{a.icon}</span>
-                  </div>
-                )
-              })}
-            </div>
-            {achievements.length > 0 && (
-              <p className="text-xs text-violet-600 font-semibold mt-2 md:mt-3">
-                🎉 {achievements.length} ta yutuq qo'lga kiritildi!
-              </p>
-            )}
-            {achievements.length === 0 && (
-              <p className="text-xs text-gray-400 mt-2">Birinchi quizni yakunlang — badge oling!</p>
-            )}
+            <p className="font-black text-sm text-gray-900 mb-0.5">Turnir</p>
+            <p className="text-xs text-gray-400">Guruhlar o'rtasida musobaqa</p>
           </div>
         </div>
+
+        {/* Yutuqlar — full width, yaxshilangan */}
+        <div className={`bg-white border border-gray-100 rounded-2xl p-5 shadow-sm transition-all duration-700 delay-[400ms] ${animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-black text-base flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-yellow-500" />
+              Yutuqlar
+            </h2>
+            <span className="text-xs font-bold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full">
+              {achievements.length}/{allBadges.length}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
+            {allBadges.map((a, i) => {
+              const earned = earnedTitles.includes(a.title)
+              return (
+                <div
+                  key={i}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition ${
+                    earned
+                      ? 'border-violet-200 bg-violet-50 shadow-sm'
+                      : 'border-gray-100 bg-gray-50'
+                  }`}
+                >
+                  <span className="text-2xl">{earned ? a.icon : <Lock className="w-5 h-5 text-gray-300" />}</span>
+                  <span className={`text-xs font-semibold text-center leading-tight ${
+                    earned ? 'text-violet-700' : 'text-gray-400'
+                  }`}>
+                    {a.title}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {achievements.length === 0 ? (
+            <p className="text-xs text-gray-400 mt-3">Birinchi quizni yakunlang — badge oling!</p>
+          ) : achievements.length < allBadges.length ? (
+            <p className="text-xs text-violet-600 font-semibold mt-3">
+              🎉 {achievements.length} ta yutuq · Yana {allBadges.length - achievements.length} ta qoldi!
+            </p>
+          ) : (
+            <p className="text-xs text-violet-600 font-semibold mt-3">🏆 Barcha yutuqlar qo'lga kiritildi!</p>
+          )}
+        </div>
+
       </main>
       <BottomNav />
     </div>

@@ -17,6 +17,7 @@ interface Question {
 interface Quiz {
   id: string
   title: string
+  type: string
   time_limit: number
   score_per_question: number
   deadline: string | null
@@ -42,6 +43,16 @@ export default function QuizPage() {
 
     const supabase = createClient()
 
+    // Qayta urinishni oldini olish (ko'p tab stsenarysi uchun)
+    const { data: existingAttempt } = await supabase
+      .from('quiz_attempts').select('id')
+      .eq('quiz_id', quizId).eq('user_id', userId).maybeSingle()
+
+    if (existingAttempt) {
+      router.push('/dashboard')
+      return
+    }
+
     // Har bir savol uchun alohida ball hisoblash
     let totalBase = 0
     let earnedBase = 0
@@ -63,7 +74,7 @@ export default function QuizPage() {
     const score = Math.round(earnedBase * timeCoefficient)
     const correct = questions.filter(q => finalAnswers[q.id] === q.correct_answer).length
 
-    await supabase.from('quiz_attempts').insert({
+    const { error: insertError } = await supabase.from('quiz_attempts').insert({
       quiz_id: quizId,
       user_id: userId,
       score,
@@ -72,9 +83,15 @@ export default function QuizPage() {
       time_spent: timeUsed,
     })
 
-    await supabase.rpc('increment_score', { user_id: userId, amount: score })
-    await supabase.rpc('update_streak', { user_id: userId })
-    await supabase.rpc('check_and_award_achievements', { p_user_id: userId })
+    // Insert muvaffaqiyatli bo'lsagina ball va streak yangilanadi
+    if (!insertError) {
+      // Tournament quizida asosiy balansga qo'shilmaydi
+      if (quiz?.type !== 'tournament') {
+        await supabase.rpc('increment_score', { user_id: userId, amount: score })
+      }
+      await supabase.rpc('update_streak', { user_id: userId })
+      await supabase.rpc('check_and_award_achievements', { p_user_id: userId })
+    }
 
     router.push(
       `/quiz/${quizId}/result?score=${score}&correct=${correct}&total=${questions.length}&time=${timeUsed}&maxScore=${totalBase}`
@@ -94,10 +111,16 @@ export default function QuizPage() {
 
       if (attempt) { router.push('/dashboard'); return }
 
-      const [{ data: quizData }, { data: questionsData }] = await Promise.all([
-        supabase.from('quizzes').select('*').eq('id', quizId).single(),
-        supabase.from('questions').select('*').eq('quiz_id', quizId).order('order_num'),
-      ])
+    const [{ data: quizData }, { data: questionsData }] = await Promise.all([
+      supabase.from('quizzes').select('*').eq('id', quizId).single(),
+      supabase.from('questions').select('*').eq('quiz_id', quizId).order('order_num'),
+])
+
+// Tournament quizida tasodifiy 15 ta savol
+const isTournamentQuiz = quizData?.type === 'tournament'
+const finalQuestions = isTournamentQuiz
+  ? [...(questionsData ?? [])].sort(() => Math.random() - 0.5).slice(0, 15)
+  : (questionsData ?? [])
 
       if (!quizData || quizData.status !== 'active') { router.push('/dashboard'); return }
 
@@ -108,7 +131,7 @@ export default function QuizPage() {
       }
 
       setQuiz(quizData)
-      setQuestions(questionsData ?? [])
+      setQuestions(finalQuestions)
       setTimeLeft(quizData.time_limit)
       setLoading(false)
     }

@@ -1,0 +1,23 @@
+[33m3a163a9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m Update: o'zgarishlar tavsifi
+[33m25be20d[m fix: super_admin role va o'chirish action tuzatildi
+[33m58450f9[m fix: hafta qahramoni e'lon qilish va o'chirish tuzatildi
+[33m808c73f[m feat: per-round quiz system & auto deadline
+[33mcc4de46[m feat: tournament system improvements & group stats
+[33maf514bb[m feat: tournament system, playoff bracket, fire animations, permissions, team supabase
+[33m9ed75ef[m feat: team supabase, permissions system, admin groups, super_admin role
+[33m3057d19[m fix: profile id page, leaderboard click to profile
+[33m48993ac[m fix: profile id page, leaderboard click to profile
+[33ma460519[m fix: profile id page, leaderboard click to profile
+[33m610a681[m feat: leaderboard profile click, team page, dashboard mobile nav fix
+[33m999deef[m feat: bottom nav, premium groups, leaderboard avatars, student quizzes fix
+[33m96b98ba[m feat: group detail, quiz import, leaderboard premium, logo, admin management
+[33m799ebe2[m feat: time-based scoring, per-question points, deadline, mobile optimization
+[33m01946de[m feat: time-based scoring, per-question points, deadline, mobile optimization
+[33mf728658[m feat: achievements system, quiz history, full dashboard, streak fix
+[33mb832d82[m feat: streak system, quiz history, announcements fix, groups ranking
+[33m8012e1e[m trigger deploy
+[33m70825ca[m Update page.tsx
+[33m6a6ff10[m[33m ([m[1;31mkomronbek06/master[m[33m)[m feat: light mode UI, register with groups, announcements, students management
+[33m9939922[m feat: initial EduArena setup - auth, quiz, leaderboard
+[33ma30f398[m feat: initial commit
+[33mb3a9de9[m Initial commit from Create Next App

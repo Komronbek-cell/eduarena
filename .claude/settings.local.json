@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/user/eduarena/src/app -type d -name \"\\(admin\\)\" -o -name \"\\(student\\)\" -o -name \"\\(auth\\)\")",
+      "Bash(ls -la /c/Users/user/eduarena/src/app/'\\(admin\\)'/admin)",
+      "Bash(ls -la /c/Users/user/eduarena/src/app/'\\(student\\)'/quiz)",
+      "Bash(find /c/Users/user/eduarena/src/app/'\\(student\\)' -name \"page.tsx\" -type f)",
+      "Bash(find /c/Users/user/eduarena/src/app/'\\(admin\\)'/admin -name \"page.tsx\")"
+    ]
+  }
+}
