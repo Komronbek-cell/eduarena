@@ -221,7 +221,7 @@ export default function ImportQuizPage() {
                   <option value="daily">Kunlik</option>
                   <option value="weekly">Haftalik</option>
                   <option value="tournament">Turnir</option>
-
+                  
                 </select>
               </div>
               <div>
