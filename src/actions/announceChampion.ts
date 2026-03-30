@@ -46,3 +46,20 @@ export async function announceChampionAction(data: {
 
   return { success: true }
 }
+export async function deleteChampionAction(id: string) {
+  const { error } = await adminSupabase
+    .from('weekly_champions')
+    .delete()
+    .eq('id', id)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+export async function deleteAnnouncementAction(id: string) {
+  const { error } = await adminSupabase
+    .from('announcements')
+    .delete()
+    .eq('id', id)
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}

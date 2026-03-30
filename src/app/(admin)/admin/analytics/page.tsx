@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
 
       const { data: profile } = await supabase
         .from('profiles').select('role').eq('id', user.id).single()
-      if (profile?.role !== 'admin') { router.push('/dashboard'); return }
+      if (profile?.role !== 'admin' && profile?.role !== 'super_admin') { router.push('/dashboard'); return }
 
       const [
         { data: students },
